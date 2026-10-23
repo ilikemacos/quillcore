@@ -6,7 +6,7 @@ Open-source Fabric optimization suite for Minecraft Java Edition. QuillCore comb
 
 Inspired by the *goals* of projects like Sodium and Lithium. QuillCore is an **independent** implementation, it does **not** copy their source and does **not** imply endorsement.
 
-## Status: 0.3.1
+## Status: 0.4.0
 
 | Area | Status |
 |------|--------|
@@ -24,7 +24,7 @@ Inspired by the *goals* of projects like Sodium and Lithium. QuillCore is an **i
 | Weather radius cap (Quill Render, opt-in) | Implemented (default off) |
 | Bench tick/frame sampling | Implemented (no fabricated Sodium numbers) |
 | FrameFX external launcher | Implemented (Windows probe/launch only; not in-process) |
-| FSR1 spatial / XeSS / temporal FSR / frame gen | Stub backends only, all report unavailable |
+| FSR1 spatial (EASU+RCAS) | **Implemented**, main-RT scale + AMD MIT shaders; Sodium may limit (see FEASIBILITY) |
 | CSR | Permanently excluded |
 
 ## Supported versions
@@ -39,7 +39,7 @@ Inspired by the *goals* of projects like Sodium and Lithium. QuillCore is an **i
 1. Install Fabric Loader for Minecraft 1.21.8.
 2. Install [Fabric API](https://modrinth.com/mod/fabric-api).
 3. (Optional) Install [ModMenu](https://modrinth.com/mod/modmenu) + [Cloth Config](https://modrinth.com/mod/cloth-config) for the in-game settings screen.
-4. Drop `quillcore-0.3.1.jar` from [Releases](https://github.com/ilikemacos/quillcore/releases) (or `build/libs/` after building) into your `mods/` folder.
+4. Drop `quillcore-0.4.0.jar` from [Releases](https://github.com/ilikemacos/quillcore/releases) (or `build/libs/` after building) into your `mods/` folder.
 5. Launch the game. Config: `config/quillcore.json` or Mod Menu → QuillCore.
 
 ## Build
@@ -49,7 +49,7 @@ export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64   # or any JDK 25+
 ./gradlew build test
 ```
 
-Jar output: `build/libs/quillcore-0.3.1.jar`
+Jar output: `build/libs/quillcore-0.4.0.jar`
 
 ## Commands (permission level 2)
 
@@ -78,7 +78,15 @@ Defaults are conservative. Flip `masterEnabled`, `renderEnabled`, or `logicEnabl
 
 ## Upscaling / frame generation
 
-All **in-process** upscale backends currently report **unavailable**. Spatial FSR1 is blocked on Fabric 1.21.8, see the README for the exact missing hook. FrameFX can be **launched externally** via `/quillcore framefx launch` on Windows; QuillCore never composites frames for it and never forwards CSR flags.
+| Backend | Status |
+|---------|--------|
+| **AMD FSR1** (`fsr1`) | **Working path:** shrinks the vanilla main `RenderTarget` before `renderLevel`, runs **EASU + RCAS** (AMD FidelityFX FSR1, MIT), restores native resolution before GUI/HUD. Quality presets map to AMD render scales. |
+| CSR | Permanently excluded, never labelled as FSR. |
+
+**Sodium:** FSR1 uses the vanilla main target. If Sodium ignores that resize, FSR1 is limited/disabled with Sodium, the config/log warns. Prefer testing without Sodium first.
+
+**License:** FSR1 algorithm © AMD, MIT, see `third_party/amd-fsr1/`. FSR2/3 SDK licenses are separate; QuillCore does not ship those SDKs.
+
 
 ## Benchmarks
 

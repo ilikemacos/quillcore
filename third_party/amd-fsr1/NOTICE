@@ -1,0 +1,9 @@
+AMD FidelityFX Super Resolution 1 (FSR1)
+Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+
+Licensed under the MIT License (see LICENSE in this directory).
+Source: https://github.com/GPUOpen-Effects/FidelityFX-FSR
+
+QuillCore vendors an EASU + RCAS GLSL port of the FSR1 algorithm for Minecraft's
+RenderPipeline / fragment-shader path (not the original compute-shader sample).
+Algorithm and naming follow AMD's published FSR1 specification. Attribution required.

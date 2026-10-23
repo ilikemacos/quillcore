@@ -4,6 +4,10 @@ import com.chopstickshq.quillcore.common.QuillConfig;
 import com.chopstickshq.quillcore.compat.CompatStatus;
 import com.chopstickshq.quillcore.framefx.FrameFxLauncher;
 import com.chopstickshq.quillcore.upscale.UpscaleRegistry;
+import com.chopstickshq.quillcore.upscale.fsr.FsrController;
+import com.chopstickshq.quillcore.upscale.fsr.FsrQualityPreset;
+import java.util.Arrays;
+import java.util.List;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
@@ -151,14 +155,39 @@ public final class QuillCoreConfigScreen {
 		upscale.addEntry(entry.startTextDescription(Component.literal(CompatStatus.summarize())).build());
 		upscale.addEntry(entry.startTextDescription(Component.literal(
 				"Backends: " + UpscaleRegistry.summarize()
-						+ ". Spatial FSR1 / XeSS / temporal FSR / framegen unavailable in 0.3.1 — see docs/FEASIBILITY.md. CSR excluded."
+						+ ". Runtime: " + FsrController.runtimeStatus()
+						+ ". FSR1 = real EASU+RCAS (AMD MIT). CSR excluded."
 		)).build());
-		upscale.addEntry(entry.startStrField(Component.literal("Upscale backend id"), c.upscaleBackendId)
+		List<String> backendIds = List.of("none", "fsr1");
+		upscale.addEntry(entry.startStringDropdownMenu(Component.literal("Upscale backend"), c.upscaleBackendId)
 				.setDefaultValue("none")
-				.setSaveConsumer(v -> QuillConfig.get().upscaleBackendId = v == null || v.isBlank() ? "none" : v.trim())
-				.setTooltip(Component.literal("none|fsr|xess|framefx — selection is recorded; backends still report unavailable."))
+				.setSelections(backendIds)
+				.setSaveConsumer(v -> QuillConfig.get().upscaleBackendId = v == null || v.isBlank() ? "none" : v.trim().toLowerCase())
+				.setTooltip(Component.literal("fsr1 runs AMD FSR1 spatial. Never labels bilinear as FSR."))
 				.build());
-		upscale.addEntry(entry.startBooleanToggle(Component.literal("Frame generation"), c.frameGenEnabled)
+		List<String> presets = Arrays.stream(FsrQualityPreset.values()).map(Enum::name).toList();
+		upscale.addEntry(entry.startStringDropdownMenu(Component.literal("FSR quality preset"), c.fsrQualityPreset)
+				.setDefaultValue("QUALITY")
+				.setSelections(presets)
+				.setSaveConsumer(v -> QuillConfig.get().fsrQualityPreset = v == null ? "QUALITY" : v)
+				.setTooltip(Component.literal("AMD FSR1 quality modes → internal render scale. HUD stays native."))
+				.build());
+		upscale.addEntry(entry.startFloatField(Component.literal("FSR RCAS sharpness"), c.fsrSharpness)
+				.setDefaultValue(0.2f).setMin(0.0f).setMax(2.0f)
+				.setSaveConsumer(v -> QuillConfig.get().fsrSharpness = v)
+				.setTooltip(Component.literal("0 = max sharpening, 2 = softer. AMD RCAS control."))
+				.build());
+		upscale.addEntry(entry.startFloatField(Component.literal("FSR render scale override"), c.fsrRenderScaleOverride)
+				.setDefaultValue(0.0f).setMin(0.0f).setMax(1.0f)
+				.setSaveConsumer(v -> QuillConfig.get().fsrRenderScaleOverride = v)
+				.setTooltip(Component.literal("0 = use preset. Otherwise 0.25–1.0 internal scale (≥1 skips FSR1)."))
+				.build());
+		upscale.addEntry(entry.startBooleanToggle(Component.literal("FSR3 frame generation"), c.fsrFrameGenEnabled)
+				.setDefaultValue(false)
+				.setSaveConsumer(v -> QuillConfig.get().fsrFrameGenEnabled = v)
+				.setTooltip(Component.literal("Stored but ignored — no FG backend. Off by default."))
+				.build());
+		upscale.addEntry(entry.startBooleanToggle(Component.literal("Frame generation (legacy)"), c.frameGenEnabled)
 				.setDefaultValue(false)
 				.setSaveConsumer(v -> QuillConfig.get().frameGenEnabled = false)
 				.setTooltip(Component.literal("Forced off — no working frame-gen backend."))

@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.4.0, 2026-10-22
+
+### Added
+- **AMD FSR1 (EASU+RCAS)** as a real Quill Upscale backend (`fsr1` / legacy `fsr`):
+  - Main `RenderTarget` render-scale before `GameRenderer#renderLevel`.
+  - Portable GLSL EASU + RCAS (AMD FidelityFX FSR1 algorithm, MIT) via `RenderPipeline` fullscreen passes.
+  - Upscale completes before GUI so HUD stays native resolution.
+  - Quality presets: Ultra Quality / Quality / Balanced / Performance / Ultra Performance.
+  - RCAS sharpness + optional render-scale override in config (schema v5) and Cloth Config UI.
+- **FSR2** / **FSR3** backend classes that report unavailable (motion vectors / FG).
+- `third_party/amd-fsr1/` NOTICE + MIT LICENSE (AMD attribution).
+- Unit tests: `FsrQualityPresetTest`.
+
+### Changed
+- Version bump to **0.4.0**; config schema version **5**.
+- Upscale registry lists `fsr1`, `fsr2`, `fsr3` (plus legacy `fsr` → FSR1).
+
+### Known limits
+- **Sodium:** may not honor vanilla main-RT resize, FSR1 can be limited/disabled with Sodium; log warns.
+- FSR2/FSR3/XeSS/frame gen remain unavailable (no fabricated claims).
+- No fabricated FPS benches.
+- CSR permanently excluded.
+
+### Not shipped
+- FSR2 temporal upscale, FSR3 frame generation, XeSS, in-process FrameFX.
+
+
 ## 0.3.1, 2026-10-22
 
 ### Added

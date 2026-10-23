@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * Every toggle here is wired to real behavior (or an "unavailable" backend status).
  */
 public final class QuillConfig {
-	public static final int CURRENT_VERSION = 4;
+	public static final int CURRENT_VERSION = 5;
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 	private static QuillConfig INSTANCE = new QuillConfig();
@@ -67,8 +67,23 @@ public final class QuillConfig {
 	public int weatherRadiusCapBlocks = 6;
 
 
-	/** Selected upscale backend id; stubs always report unavailable. */
+	/**
+	 * Selected upscale backend id: none|fsr1|fsr (legacy→fsr1).
+	 * Only fsr1/fsr currently run a real path; others refuse with a logged reason.
+	 */
 	public String upscaleBackendId = "none";
+	/** Quality / Balanced / Performance / …, see {@code FsrQualityPreset}. */
+	public String fsrQualityPreset = "QUALITY";
+	/** RCAS sharpness 0 (sharp) … 2 (soft). Default 0.2. */
+	public float fsrSharpness = 0.2f;
+	/**
+	 * Optional manual render scale (0 = use preset). Clamped to 0.25–1.0 when > 0.
+	 * Values ≥ 1 skip FSR1 (no upscale).
+	 */
+	public float fsrRenderScaleOverride = 0.0f;
+	/** FSR3 frame generation, accepted in config but never enabled (no FG backend). */
+	public boolean fsrFrameGenEnabled = false;
+	/** Legacy / generic frame-gen flag; forced off, no working FG backend. */
 	public boolean frameGenEnabled = false;
 
 	public boolean benchEnabled = false;
@@ -135,6 +150,13 @@ public final class QuillConfig {
 		if (configVersion < 4) {
 			configVersion = 4;
 		}
+		if (configVersion < 5) {
+			// Prefer explicit fsr1 id over legacy "fsr".
+			if ("fsr".equalsIgnoreCase(upscaleBackendId)) {
+				upscaleBackendId = "fsr1";
+			}
+			configVersion = 5;
+		}
 		if (configVersion < CURRENT_VERSION) {
 			configVersion = CURRENT_VERSION;
 		}
@@ -175,8 +197,24 @@ public final class QuillConfig {
 
 		if (upscaleBackendId == null || upscaleBackendId.isBlank()) {
 			upscaleBackendId = "none";
+		} else {
+			upscaleBackendId = upscaleBackendId.trim().toLowerCase();
+			if ("fsr".equals(upscaleBackendId)) {
+				upscaleBackendId = "fsr1";
+			}
 		}
-		// Frame gen stays off unless user explicitly enables; backends are still stubs.
+		if (fsrQualityPreset == null || fsrQualityPreset.isBlank()) {
+			fsrQualityPreset = "QUALITY";
+		}
+		if (Float.isNaN(fsrSharpness) || fsrSharpness < 0.0f || fsrSharpness > 2.0f) {
+			fsrSharpness = 0.2f;
+		}
+		if (Float.isNaN(fsrRenderScaleOverride) || fsrRenderScaleOverride < 0.0f) {
+			fsrRenderScaleOverride = 0.0f;
+		} else if (fsrRenderScaleOverride > 1.0f) {
+			fsrRenderScaleOverride = 1.0f;
+		}
+		// No working frame-gen backend, keep generic flag off. fsrFrameGenEnabled may be stored but is ignored.
 		frameGenEnabled = false;
 	}
 
@@ -194,6 +232,8 @@ public final class QuillConfig {
 				+ " cloudCap=" + cloudDistanceCapEnabled
 				+ " weatherCap=" + weatherRadiusCapEnabled
 				+ " upscale=" + upscaleBackendId
+				+ " fsrPreset=" + fsrQualityPreset
+				+ " fsrFG=" + fsrFrameGenEnabled
 				+ " frameGen=" + frameGenEnabled
 				+ " bench=" + benchEnabled;
 	}
