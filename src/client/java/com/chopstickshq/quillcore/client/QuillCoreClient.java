@@ -3,6 +3,7 @@ package com.chopstickshq.quillcore.client;
 import com.chopstickshq.quillcore.bench.BenchHarness;
 import com.chopstickshq.quillcore.common.QuillConfig;
 import com.chopstickshq.quillcore.common.QuillCore;
+import com.chopstickshq.quillcore.upscale.fsr.FsrController;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 
@@ -11,6 +12,7 @@ public final class QuillCoreClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
+		FsrController.bootstrap();
 		WorldRenderEvents.END.register(context -> {
 			if (!(QuillConfig.get().benchEnabled || BenchHarness.isRunning())) {
 				lastFrameNs = 0L;
@@ -22,6 +24,10 @@ public final class QuillCoreClient implements ClientModInitializer {
 			}
 			lastFrameNs = now;
 		});
-		QuillCore.LOGGER.info("QuillCore client 0.2.0 — entity/BE render cutoffs active when renderEnabled. {}", QuillConfig.get().statusSummary());
+		QuillCore.LOGGER.info(
+				"QuillCore client — FSR1 pipelines ready; {}. {}",
+				FsrController.runtimeStatus(),
+				QuillConfig.get().statusSummary()
+		);
 	}
 }

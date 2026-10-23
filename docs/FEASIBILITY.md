@@ -1,7 +1,7 @@
 # QuillCore technical feasibility — FSR, XeSS, FrameFX, frame generation
 
 **Minecraft target:** 1.21.8 (Fabric)  
-**Milestone:** 0.3.0  
+**Milestone:** 0.4.0  
 **Date:** 2026-10-22 (America/Vancouver)
 
 This document records what was investigated. **Nothing here is claimed as a working integration** unless explicitly marked. Stub backends in `upscale/` and `framegen/` report unavailable. External FrameFX launch is a process helper, not an upscale backend.
@@ -19,16 +19,22 @@ This document records what was investigated. **Nothing here is claimed as a work
 | Sodium | Sodium replaces / heavily rewrites the world render path. There is **no** public Sodium extension API (as of the Sodium builds QuillCore targets for 1.21.8) that exposes "post-composite, pre-GUI color buffer at controllable render scale." Mixing into Sodium internals without a compat gate would break Sodium and is out of policy. |
 | What a real FSR1 path would need | (1) Resize / recreate the main color (+depth) target to `scale * window` **before** `GameRenderer#renderLevel` / `LevelRenderer#renderLevel`. (2) Run the full world pass into that lower-res target. (3) Run EASU+RCAS (or a ported fragment/compute shader) into a full-res texture. (4) Present that to the swapchain / `presentTexture` **before** GUI. (5) Draw GUI/HUD at native resolution. Steps 1–4 must behave identically with Sodium absent, Sodium present+disabled, and Sodium present — QuillCore does not have that hook. |
 
-### Exact missing hook (0.3.0 close-out)
+### 0.4.0 — FSR1 shipped (vanilla main-RT path)
 
-> **Missing:** a Sodium-safe, Fabric-documented interception point that (a) lets a mod set main-pass render resolution independently of GUI resolution, and (b) provides the completed world color `GpuTextureView` (or legacy FBO id) after composite and **before** hand/GUI for a spatial upscale pass.  
-> Neither `WorldRenderEvents.END` / `LAST` nor `GpuDevice.presentTexture` supplies (a)+(b) together. Sodium does not publish a post-composite extension for this on 1.21.8.
+**Implemented:** Mixin on `GameRenderer#render`:
+1. Before `renderLevel` — resize main `RenderTarget` to preset render scale.
+2. After world + vanity post, before `FogRenderer#endFrame` / GUI — run AMD FSR1 **EASU** then **RCAS** (MIT GLSL port) into scratch full-res targets, restore main to native size, blit result.
+3. GUI/HUD draw at native resolution.
 
-**0.3.0 status:** **Not implemented.** `FsrBackend` remains a stub labeled **"AMD FSR1 spatial (not implemented)"**. Do **not** bilinear-scale and label it FSR. Temporal FSR stays unavailable (separate motion-vector blocker).
+**Shaders:** `assets/quillcore/shaders/core/fsr_{easu,rcas,blit}.*` — algorithm © AMD, MIT (`third_party/amd-fsr1/`).
 
-**Next-best render work shipped instead:** particle spawn-distance cutoff (see CHANGELOG / Quill Render).
+**Sodium:** Still **no** public Sodium post-composite API. FSR1 depends on vanilla main-RT resize. With Sodium loaded, QuillCore logs a warning; if Sodium ignores the resize, FSR1 is **limited or ineffective** — document as "disabled or limited with Sodium". Do not claim Sodium-certified FSR.
 
-**Chunk-rebuild coalescing:** investigated as a candidate; vanilla `LevelRenderer` / `SectionRenderDispatcher` vs Sodium `RenderSectionManager` diverge completely. No Sodium-safe coalescing mixin shipped; no fabricated bench. Remains a future idea only if a measurable rebuild-dispatch reduction can be shown with `BenchHarness`.
+**FSR2 / FSR3:** Stub backends (`fsr2`, `fsr3`) with `isAvailable()==false`. Blockers unchanged: motion vectors, jitter, FG pacing. Frame gen config accepted but ignored.
+
+**Honesty:** Never label bilinear/generic scaling as FSR. CSR permanently excluded.
+
+**Chunk-rebuild coalescing:** still not shipped (Sodium divergence; unmeasurable here).
 
 ---
 
@@ -74,17 +80,18 @@ Temporal frame generation needs motion vectors (or optical flow), depth, HUD-saf
 
 ---
 
-## 5. Summary for 0.3.0
+## 5. Summary for 0.4.0
 
 | Backend / helper | Implemented? | Available at runtime? |
 |------------------|--------------|------------------------|
-| FSR1 spatial | Stub (exact hook documented above) | No |
-| Temporal FSR / XeSS | Stub | No |
+| FSR1 spatial (EASU+RCAS) | **Yes** (vanilla main-RT path) | Yes when `upscaleBackendId=fsr1` (Sodium may limit) |
+| FSR2 / FSR3 | Stub (refuse + log) | No |
+| XeSS | Stub | No |
 | FrameFX in-process (`FrameFxBackend`) | Stub adapter | No |
 | FrameFX external launcher | **Yes** (`FrameFxLauncher`) | Probe/launch on Windows only; never claims compositing |
 | Frame gen | Stub | No |
 
-QuillCore loads successfully with all **upscale** backends unavailable. Selecting them must not crash the game. CSR remains permanently excluded.
+QuillCore loads with FSR1 available and FSR2/FSR3/XeSS/FrameFX-in-process unavailable. Selecting an unavailable backend must not crash. CSR remains permanently excluded.
 
 ## Chunk rebuild coalescing (skipped — 0.3.1)
 

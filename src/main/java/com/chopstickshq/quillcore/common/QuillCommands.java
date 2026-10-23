@@ -125,6 +125,10 @@ public final class QuillCommands {
 				case "weatherRadiusCapEnabled" -> c.weatherRadiusCapEnabled = parseBool(value);
 				case "weatherRadiusCapBlocks" -> c.weatherRadiusCapBlocks = Integer.parseInt(value.trim());
 				case "upscaleBackendId" -> c.upscaleBackendId = value.trim();
+				case "fsrQualityPreset" -> c.fsrQualityPreset = value.trim();
+				case "fsrSharpness" -> c.fsrSharpness = Float.parseFloat(value);
+				case "fsrRenderScaleOverride" -> c.fsrRenderScaleOverride = Float.parseFloat(value);
+				case "fsrFrameGenEnabled" -> c.fsrFrameGenEnabled = Boolean.parseBoolean(value);
 				case "frameGenEnabled" -> {
 					// Stubs only — force false even if user asks for true.
 					c.frameGenEnabled = false;
@@ -133,7 +137,7 @@ public final class QuillCommands {
 				case "benchEnabled" -> c.benchEnabled = parseBool(value);
 				default -> {
 					source.sendFailure(Component.literal("Unknown key: " + key
-							+ " (masterEnabled|renderEnabled|logicEnabled|idleAi*|brainIdle*|entityRenderCutoff*|blockEntityRenderCutoff*|particleRenderCutoff*|itemMergeThrottle*|pathNavThrottle*|cloudDistanceCap*|weatherRadiusCap*|frameFxExecutablePath|upscaleBackendId|frameGenEnabled|benchEnabled)"));
+							+ " (masterEnabled|renderEnabled|logicEnabled|idleAi*|brainIdle*|entityRenderCutoff*|blockEntityRenderCutoff*|particleRenderCutoff*|itemMergeThrottle*|pathNavThrottle*|cloudDistanceCap*|weatherRadiusCap*|frameFxExecutablePath|upscaleBackendId|fsrQualityPreset|fsrSharpness|fsrRenderScaleOverride|fsrFrameGenEnabled|frameGenEnabled|benchEnabled)"));
 					return 0;
 				}
 			}
