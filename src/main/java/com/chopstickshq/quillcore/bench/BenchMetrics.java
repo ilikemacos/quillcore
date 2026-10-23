@@ -1,0 +1,34 @@
+package com.chopstickshq.quillcore.bench;
+
+/** Bench results. Fields stay null until there are samples. */
+public final class BenchMetrics {
+	public String scenarioId;
+	public Double avgFps;
+	public Double pct1LowFps;
+	public Double frameTimeP50Ms;
+	public Double frameTimeP99Ms;
+	public Double tickDurationMs;
+	public Long memoryUsedBytes;
+	public Double allocRateBytesPerSec;
+	public String notes = "unmeasured";
+
+	public boolean hasMeasurements() {
+		return avgFps != null || pct1LowFps != null || tickDurationMs != null || memoryUsedBytes != null;
+	}
+
+	@Override
+	public String toString() {
+		if (!hasMeasurements()) {
+			return "scenario=" + scenarioId + " status=NO_SAMPLES notes=" + notes;
+		}
+		return "scenario=" + scenarioId
+				+ " avgFps=" + avgFps
+				+ " pct1Low=" + pct1LowFps
+				+ " ftP50Ms=" + frameTimeP50Ms
+				+ " ftP99Ms=" + frameTimeP99Ms
+				+ " tickMs=" + tickDurationMs
+				+ " mem=" + memoryUsedBytes
+				+ " allocBps=" + allocRateBytesPerSec
+				+ " notes=" + notes;
+	}
+}
