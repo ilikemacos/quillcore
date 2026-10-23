@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * Every toggle here is wired to real behavior (or an "unavailable" backend status).
  */
 public final class QuillConfig {
-	public static final int CURRENT_VERSION = 2;
+	public static final int CURRENT_VERSION = 3;
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 	private static QuillConfig INSTANCE = new QuillConfig();
@@ -41,6 +41,17 @@ public final class QuillConfig {
 	/** Signs/skulls only; chests and animated BEs never affected. */
 	public boolean blockEntityRenderCutoffEnabled = true;
 	public double blockEntityRenderCutoffBlocks = 96.0;
+
+	/** Distant particle spawn skip (client-only). Default 64 blocks. */
+	public boolean particleRenderCutoffEnabled = true;
+	public double particleRenderCutoffBlocks = 64.0;
+
+	public boolean itemMergeThrottleEnabled = true;
+	public int itemMergeThrottleMaxSkipTicks = 2;
+	public double itemMergeThrottlePlayerRadiusBlocks = 32.0;
+
+	/** Absolute path to Universal-FrameFX.exe (Windows). Empty = PATH probe. */
+	public String frameFxExecutablePath = "";
 
 	/** Selected upscale backend id; stubs always report unavailable. */
 	public String upscaleBackendId = "none";
@@ -102,8 +113,10 @@ public final class QuillConfig {
 	/** Bring older config files forward without wiping user toggles. */
 	public void migrate() {
 		if (configVersion < 2) {
-			// New 0.2.0 fields keep their field initializers when Gson leaves them default.
 			configVersion = 2;
+		}
+		if (configVersion < 3) {
+			configVersion = 3;
 		}
 		if (configVersion < CURRENT_VERSION) {
 			configVersion = CURRENT_VERSION;
@@ -126,6 +139,16 @@ public final class QuillConfig {
 		if (Double.isNaN(blockEntityRenderCutoffBlocks) || blockEntityRenderCutoffBlocks < 0) {
 			blockEntityRenderCutoffBlocks = 96.0;
 		}
+		if (Double.isNaN(particleRenderCutoffBlocks) || particleRenderCutoffBlocks < 0) {
+			particleRenderCutoffBlocks = 64.0;
+		}
+		itemMergeThrottleMaxSkipTicks = IdleAiThrottle.clamp(itemMergeThrottleMaxSkipTicks, 0, 10);
+		if (Double.isNaN(itemMergeThrottlePlayerRadiusBlocks) || itemMergeThrottlePlayerRadiusBlocks < 0) {
+			itemMergeThrottlePlayerRadiusBlocks = 32.0;
+		}
+		if (frameFxExecutablePath == null) {
+			frameFxExecutablePath = "";
+		}
 		if (upscaleBackendId == null || upscaleBackendId.isBlank()) {
 			upscaleBackendId = "none";
 		}
@@ -141,6 +164,8 @@ public final class QuillConfig {
 				+ " brainAi=" + brainIdleThrottleEnabled
 				+ " entCutoff=" + entityRenderCutoffEnabled + "@" + entityRenderCutoffBlocks
 				+ " beCutoff=" + blockEntityRenderCutoffEnabled + "@" + blockEntityRenderCutoffBlocks
+				+ " particleCutoff=" + particleRenderCutoffEnabled + "@" + particleRenderCutoffBlocks
+				+ " itemMerge=" + itemMergeThrottleEnabled
 				+ " upscale=" + upscaleBackendId
 				+ " frameGen=" + frameGenEnabled
 				+ " bench=" + benchEnabled;
