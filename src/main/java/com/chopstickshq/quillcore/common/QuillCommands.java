@@ -2,8 +2,10 @@ package com.chopstickshq.quillcore.common;
 
 import com.chopstickshq.quillcore.bench.BenchHarness;
 import com.chopstickshq.quillcore.compat.CompatStatus;
+import com.chopstickshq.quillcore.framefx.FrameFxLauncher;
 import com.chopstickshq.quillcore.logic.BrainIdleThrottleState;
 import com.chopstickshq.quillcore.logic.IdleAiThrottleState;
+import com.chopstickshq.quillcore.logic.ItemMergeThrottleState;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
@@ -21,6 +23,7 @@ public final class QuillCommands {
 							QuillConfig c = QuillConfig.get();
 							ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] " + c.statusSummary()), false);
 							ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] " + CompatStatus.summarize()), false);
+							ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] " + FrameFxLauncher.probeSummary(c.frameFxExecutablePath)), false);
 							return 1;
 						}))
 				.then(Commands.literal("reload")
@@ -28,6 +31,7 @@ public final class QuillCommands {
 							QuillConfig.load();
 							IdleAiThrottleState.clear();
 							BrainIdleThrottleState.clear();
+							ItemMergeThrottleState.clear();
 							ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] Reloaded config: " + QuillConfig.get().statusSummary()), true);
 							return 1;
 						}))
@@ -36,6 +40,7 @@ public final class QuillCommands {
 							QuillConfig.resetToDefaults();
 							IdleAiThrottleState.clear();
 							BrainIdleThrottleState.clear();
+							ItemMergeThrottleState.clear();
 							ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] Reset to defaults: " + QuillConfig.get().statusSummary()), true);
 							return 1;
 						}))
@@ -45,6 +50,23 @@ public final class QuillCommands {
 										.executes(ctx -> set(ctx.getSource(),
 												StringArgumentType.getString(ctx, "key"),
 												StringArgumentType.getString(ctx, "value"))))))
+				.then(Commands.literal("framefx")
+						.then(Commands.literal("probe")
+								.executes(ctx -> {
+									String s = FrameFxLauncher.probeSummary(QuillConfig.get().frameFxExecutablePath);
+									ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] " + s), false);
+									return 1;
+								}))
+						.then(Commands.literal("launch")
+								.executes(ctx -> {
+									var err = FrameFxLauncher.launch(QuillConfig.get().frameFxExecutablePath);
+									if (err.isPresent()) {
+										ctx.getSource().sendFailure(Component.literal("[QuillCore] " + err.get()));
+										return 0;
+									}
+									ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] Launched Universal-FrameFX externally (no CSR flags; not in-process)."), false);
+									return 1;
+								})))
 				.then(Commands.literal("bench")
 						.then(Commands.literal("start")
 								.executes(ctx -> {
@@ -86,6 +108,12 @@ public final class QuillCommands {
 				case "entityRenderCutoffBlocks" -> c.entityRenderCutoffBlocks = Double.parseDouble(value.trim());
 				case "blockEntityRenderCutoffEnabled" -> c.blockEntityRenderCutoffEnabled = parseBool(value);
 				case "blockEntityRenderCutoffBlocks" -> c.blockEntityRenderCutoffBlocks = Double.parseDouble(value.trim());
+				case "particleRenderCutoffEnabled" -> c.particleRenderCutoffEnabled = parseBool(value);
+				case "particleRenderCutoffBlocks" -> c.particleRenderCutoffBlocks = Double.parseDouble(value.trim());
+				case "itemMergeThrottleEnabled" -> c.itemMergeThrottleEnabled = parseBool(value);
+				case "itemMergeThrottleMaxSkipTicks" -> c.itemMergeThrottleMaxSkipTicks = Integer.parseInt(value.trim());
+				case "itemMergeThrottlePlayerRadiusBlocks" -> c.itemMergeThrottlePlayerRadiusBlocks = Double.parseDouble(value.trim());
+				case "frameFxExecutablePath" -> c.frameFxExecutablePath = value.trim();
 				case "upscaleBackendId" -> c.upscaleBackendId = value.trim();
 				case "frameGenEnabled" -> {
 					c.frameGenEnabled = false;
@@ -94,7 +122,7 @@ public final class QuillCommands {
 				case "benchEnabled" -> c.benchEnabled = parseBool(value);
 				default -> {
 					source.sendFailure(Component.literal("Unknown key: " + key
-							+ " (masterEnabled|renderEnabled|logicEnabled|idleAi*|brainIdle*|entityRenderCutoff*|blockEntityRenderCutoff*|upscaleBackendId|frameGenEnabled|benchEnabled)"));
+							+ " (masterEnabled|renderEnabled|logicEnabled|idleAi*|brainIdle*|entityRenderCutoff*|blockEntityRenderCutoff*|particleRenderCutoff*|itemMergeThrottle*|frameFxExecutablePath|upscaleBackendId|frameGenEnabled|benchEnabled)"));
 					return 0;
 				}
 			}

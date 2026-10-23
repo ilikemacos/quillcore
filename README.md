@@ -10,11 +10,15 @@ Server (Quill Logic):
 
 - Idle AI throttle: far idle mobs skip a few goal selector ticks. Sensing and navigation still run.
 - Villager brain throttle: far idle villagers skip `Brain.tick` the same way, but never while trading, panicking or hurt.
+- Item and XP merge throttle: far items and orbs scan for merges less often. Pickup, age and despawn are unchanged.
 
 Client (Quill Render):
 
 - Entity cutoff: entities past 128 blocks aren't drawn. The camera entity and vehicle are exempt.
 - Block entity cutoff: distant signs and skulls aren't drawn. Chests and other animated block entities are left alone.
+- Particle cutoff: particles aren't spawned past 64 blocks from the camera.
+
+There is also a launcher for [Universal-FrameFX](https://github.com/ilikemacos/universal-framefx) on Windows. It runs as a separate app.
 
 Defaults are conservative. `masterEnabled`, `renderEnabled` and `logicEnabled` turn whole groups off.
 
@@ -36,6 +40,7 @@ Permission level 2.
 | `/quillcore reload` | Reload the config file |
 | `/quillcore reset` | Restore defaults |
 | `/quillcore set <key> <value>` | Change a setting |
+| `/quillcore framefx probe\|launch` | Find or start Universal-FrameFX |
 | `/quillcore bench start\|stop\|report` | Sample tick and frame times |
 
 ## Building

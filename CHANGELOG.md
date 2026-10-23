@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 (2026-10-22)
+
+- Particle spawn cutoff
+- Item and XP orb merge throttle
+- Universal-FrameFX launcher (`/quillcore framefx`)
+- Config version 3
+
 ## 0.2.0 (2026-10-22)
 
 - Entity and sign/skull render cutoffs

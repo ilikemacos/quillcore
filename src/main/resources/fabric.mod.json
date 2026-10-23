@@ -3,7 +3,7 @@
 	"id": "quillcore",
 	"version": "${version}",
 	"name": "QuillCore",
-	"description": "Server and client optimizations for Minecraft 1.21.8: idle mob throttles and render cutoffs.",
+	"description": "Server and client optimizations for Minecraft 1.21.8: idle mob and item throttles and render cutoffs.",
 	"authors": [
 		"ChopsticksHQ",
 		"ilikemacos"
