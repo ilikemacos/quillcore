@@ -1,0 +1,36 @@
+{
+	"schemaVersion": 1,
+	"id": "quillcore",
+	"version": "${version}",
+	"name": "QuillCore",
+	"description": "One core. Smoother worlds. Open-source Fabric optimization suite (render + logic) with modular upscaling backends.",
+	"authors": [
+		"ChopsticksHQ",
+		"ilikemacos"
+	],
+	"contact": {
+		"homepage": "https://chopstickshq.com/",
+		"sources": "https://github.com/ilikemacos/quillcore",
+		"issues": "https://github.com/ilikemacos/quillcore/issues"
+	},
+	"license": "MIT",
+	"icon": "assets/quillcore/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.chopstickshq.quillcore.common.QuillCore"
+		],
+		"client": [
+			"com.chopstickshq.quillcore.client.QuillCoreClient"
+		]
+	},
+	"mixins": [
+		"quillcore.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~1.21.8",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
