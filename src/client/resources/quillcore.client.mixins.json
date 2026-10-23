@@ -4,7 +4,8 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"EntityRenderCutoffMixin",
-		"BlockEntityRenderCutoffMixin"
+		"BlockEntityRenderCutoffMixin",
+		"ParticleRenderCutoffMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

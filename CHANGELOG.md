@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0 — 2026-10-22
+
+### Added
+- Quill Render: particle spawn-distance cutoff (default 64 blocks; client-visual only).
+- Quill Logic: ItemEntity / ExperienceOrb neighbour-merge scan throttle when far from players (pickup/age untouched).
+- FrameFX **external** launcher (`FrameFxLauncher`): PATH/config probe + `/quillcore framefx probe|launch`. Windows-only; **no CSR/backend/FG flags** forwarded; never registered as an in-process upscale backend.
+- Cloth Config / ModMenu entries for particle cutoff, item-merge throttle, and FrameFX executable path.
+- Unit tests: `ParticleRenderCutoffTest`, `ItemMergeThrottleTest`, `FrameFxLauncherTest`.
+
+### Changed
+- Version bump to 0.3.0; config schema version 3 with migration.
+- `FsrBackend` / `FrameFxBackend` messaging updated for honest 0.3.0 status.
+- `docs/FEASIBILITY.md` names the exact missing FSR1 hook (Sodium-safe post-composite resizable color target before GUI / `presentTexture`).
+
+### Not shipped (documented)
+- Spatial FSR1, temporal FSR, XeSS, frame generation, chunk-rebuild coalescing, in-process FrameFX.
+- CSR remains permanently excluded.
+- No fabricated benches.
+
+
 ## 0.2.0 — 2026-10-22
 
 ### Added

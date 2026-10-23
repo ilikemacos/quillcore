@@ -1,5 +1,7 @@
 package com.chopstickshq.quillcore.compat;
 
+import com.chopstickshq.quillcore.common.QuillConfig;
+import com.chopstickshq.quillcore.framefx.FrameFxLauncher;
 import com.chopstickshq.quillcore.framegen.NoopFrameGenBackend;
 import com.chopstickshq.quillcore.upscale.UpscaleBackend;
 import com.chopstickshq.quillcore.upscale.UpscaleRegistry;
@@ -17,6 +19,7 @@ public final class CompatStatus {
 		}
 		NoopFrameGenBackend fg = new NoopFrameGenBackend();
 		sb.append("; framegen=").append(fg.id()).append(" unavailable (").append(fg.unavailableReason()).append(')');
+		sb.append("; ").append(FrameFxLauncher.probeSummary(QuillConfig.get().frameFxExecutablePath));
 		return sb.toString();
 	}
 }

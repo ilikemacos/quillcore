@@ -2,6 +2,7 @@ package com.chopstickshq.quillcore.client;
 
 import com.chopstickshq.quillcore.common.QuillConfig;
 import com.chopstickshq.quillcore.compat.CompatStatus;
+import com.chopstickshq.quillcore.framefx.FrameFxLauncher;
 import com.chopstickshq.quillcore.upscale.UpscaleRegistry;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
@@ -72,6 +73,19 @@ public final class QuillCoreConfigScreen {
 				.setDefaultValue(32.0).setMin(0.0).setMax(256.0)
 				.setSaveConsumer(v -> QuillConfig.get().brainIdleThrottlePlayerRadiusBlocks = v)
 				.build());
+		logic.addEntry(entry.startBooleanToggle(Component.literal("Item/XP merge throttle"), c.itemMergeThrottleEnabled)
+				.setDefaultValue(true)
+				.setSaveConsumer(v -> QuillConfig.get().itemMergeThrottleEnabled = v)
+				.setTooltip(Component.literal("Throttle ItemEntity/ExperienceOrb neighbour-merge scans when far from players. Pickup/age untouched."))
+				.build());
+		logic.addEntry(entry.startIntField(Component.literal("Item merge max skip ticks"), c.itemMergeThrottleMaxSkipTicks)
+				.setDefaultValue(2).setMin(0).setMax(10)
+				.setSaveConsumer(v -> QuillConfig.get().itemMergeThrottleMaxSkipTicks = v)
+				.build());
+		logic.addEntry(entry.startDoubleField(Component.literal("Item merge player radius"), c.itemMergeThrottlePlayerRadiusBlocks)
+				.setDefaultValue(32.0).setMin(0.0).setMax(256.0)
+				.setSaveConsumer(v -> QuillConfig.get().itemMergeThrottlePlayerRadiusBlocks = v)
+				.build());
 
 		ConfigCategory render = builder.getOrCreateCategory(Component.literal("Quill Render"));
 		render.addEntry(entry.startBooleanToggle(Component.literal("Entity render cutoff"), c.entityRenderCutoffEnabled)
@@ -92,11 +106,21 @@ public final class QuillCoreConfigScreen {
 				.setDefaultValue(96.0).setMin(0.0).setMax(512.0)
 				.setSaveConsumer(v -> QuillConfig.get().blockEntityRenderCutoffBlocks = v)
 				.build());
+		render.addEntry(entry.startBooleanToggle(Component.literal("Particle spawn cutoff"), c.particleRenderCutoffEnabled)
+				.setDefaultValue(true)
+				.setSaveConsumer(v -> QuillConfig.get().particleRenderCutoffEnabled = v)
+				.setTooltip(Component.literal("Skip creating particles beyond the cutoff from the camera. Client-visual only. Default 64 blocks."))
+				.build());
+		render.addEntry(entry.startDoubleField(Component.literal("Particle cutoff (blocks)"), c.particleRenderCutoffBlocks)
+				.setDefaultValue(64.0).setMin(0.0).setMax(512.0)
+				.setSaveConsumer(v -> QuillConfig.get().particleRenderCutoffBlocks = v)
+				.build());
 
 		ConfigCategory upscale = builder.getOrCreateCategory(Component.literal("Upscale / Frame gen"));
 		upscale.addEntry(entry.startTextDescription(Component.literal(CompatStatus.summarize())).build());
 		upscale.addEntry(entry.startTextDescription(Component.literal(
-				"Backends: " + UpscaleRegistry.summarize() + ". None are available in 0.2.0 — see docs/FEASIBILITY.md. CSR excluded."
+				"Backends: " + UpscaleRegistry.summarize()
+						+ ". Spatial FSR1 / XeSS / temporal FSR / framegen unavailable in 0.3.0 — see docs/FEASIBILITY.md. CSR excluded."
 		)).build());
 		upscale.addEntry(entry.startStrField(Component.literal("Upscale backend id"), c.upscaleBackendId)
 				.setDefaultValue("none")
@@ -107,6 +131,17 @@ public final class QuillCoreConfigScreen {
 				.setDefaultValue(false)
 				.setSaveConsumer(v -> QuillConfig.get().frameGenEnabled = false)
 				.setTooltip(Component.literal("Forced off — no working frame-gen backend."))
+				.build());
+
+		ConfigCategory framefx = builder.getOrCreateCategory(Component.literal("FrameFX launcher"));
+		framefx.addEntry(entry.startTextDescription(Component.literal(
+				FrameFxLauncher.probeSummary(c.frameFxExecutablePath)
+						+ " — external Windows overlay only; never in-process. Use /quillcore framefx launch. CSR flags never forwarded."
+		)).build());
+		framefx.addEntry(entry.startStrField(Component.literal("FrameFX executable path"), c.frameFxExecutablePath)
+				.setDefaultValue("")
+				.setSaveConsumer(v -> QuillConfig.get().frameFxExecutablePath = v == null ? "" : v.trim())
+				.setTooltip(Component.literal("Absolute path to Universal-FrameFX.exe. Empty = PATH probe on Windows."))
 				.build());
 
 		return builder.build();
