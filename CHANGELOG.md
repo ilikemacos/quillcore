@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.0, 2026-10-22
+
+### Added
+- Quill Render: configurable entity render-distance cutoff (default 128 blocks; camera/vehicle exempt).
+- Quill Render: distant sign/skull block-entity render skip (chests/animated BEs never skipped).
+- Quill Logic: villager `Brain.tick` idle throttle (never while trading/panicking/hurt).
+- ModMenu + Cloth Config settings screen (soft dependencies).
+- `/quillcore reset` and expanded `/quillcore set` keys.
+- Real bench tick + frame sampling wired to Fabric server/client events.
+- GitHub Actions CI (`build` + `test`).
+- Unit tests for render cutoffs, brain throttle, and bench harness.
+
+### Changed
+- Version bump to 0.2.0; config schema version 2 with migration.
+
+### Notes
+- CSR excluded.
+- No fabricated Sodium/Lithium benchmark numbers.
+
 ## 0.1.0, 2026-10-22
 
 ### Added
@@ -10,8 +29,3 @@
 - Unit tests for `IdleAiThrottle` decision logic.
 - Bench harness metric fields (no fabricated results).
 - MIT license.
-
-### Notes
-- Quill Render not implemented.
-- CSR excluded.
-- `runClient` / Sodium+Lithium comparisons not claimed on headless CI.
