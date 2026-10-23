@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 (2026-10-22)
+
+- Path navigation throttle for far idle mobs
+- Optional cloud distance and weather radius caps
+- Mod icon
+- Config version 4
+
 ## 0.3.0 (2026-10-22)
 
 - Particle spawn cutoff

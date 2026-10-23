@@ -11,12 +11,15 @@ Server (Quill Logic):
 - Idle AI throttle: far idle mobs skip a few goal selector ticks. Sensing and navigation still run.
 - Villager brain throttle: far idle villagers skip `Brain.tick` the same way, but never while trading, panicking or hurt.
 - Item and XP merge throttle: far items and orbs scan for merges less often. Pickup, age and despawn are unchanged.
+- Path navigation throttle: far idle mobs with no path skip `PathNavigation.tick`. Active paths are never interrupted.
 
 Client (Quill Render):
 
 - Entity cutoff: entities past 128 blocks aren't drawn. The camera entity and vehicle are exempt.
 - Block entity cutoff: distant signs and skulls aren't drawn. Chests and other animated block entities are left alone.
 - Particle cutoff: particles aren't spawned past 64 blocks from the camera.
+- Cloud distance cap (off by default).
+- Weather radius cap (off by default). Low values show a visible edge.
 
 There is also a launcher for [Universal-FrameFX](https://github.com/ilikemacos/universal-framefx) on Windows. It runs as a separate app.
 

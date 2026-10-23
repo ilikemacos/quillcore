@@ -13,7 +13,7 @@ import java.nio.file.Path;
 
 /** Settings stored in config/quillcore.json. */
 public final class QuillConfig {
-	public static final int CURRENT_VERSION = 3;
+	public static final int CURRENT_VERSION = 4;
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 	private static QuillConfig INSTANCE = new QuillConfig();
@@ -47,6 +47,17 @@ public final class QuillConfig {
 
 	// empty means look on PATH
 	public String frameFxExecutablePath = "";
+
+	public boolean pathNavThrottleEnabled = true;
+	public int pathNavThrottleMaxSkipTicks = 2;
+	public double pathNavThrottlePlayerRadiusBlocks = 32.0;
+
+	public boolean cloudDistanceCapEnabled = false;
+	public int cloudDistanceCapChunks = 16;
+
+	public boolean weatherRadiusCapEnabled = false;
+	public int weatherRadiusCapBlocks = 6;
+
 
 	/** Selected upscale backend id. */
 	public String upscaleBackendId = "none";
@@ -112,6 +123,9 @@ public final class QuillConfig {
 		if (configVersion < 3) {
 			configVersion = 3;
 		}
+		if (configVersion < 4) {
+			configVersion = 4;
+		}
 		if (configVersion < CURRENT_VERSION) {
 			configVersion = CURRENT_VERSION;
 		}
@@ -143,6 +157,13 @@ public final class QuillConfig {
 		if (frameFxExecutablePath == null) {
 			frameFxExecutablePath = "";
 		}
+		pathNavThrottleMaxSkipTicks = IdleAiThrottle.clamp(pathNavThrottleMaxSkipTicks, 0, 10);
+		if (Double.isNaN(pathNavThrottlePlayerRadiusBlocks) || pathNavThrottlePlayerRadiusBlocks < 0) {
+			pathNavThrottlePlayerRadiusBlocks = 32.0;
+		}
+		cloudDistanceCapChunks = IdleAiThrottle.clamp(cloudDistanceCapChunks, 1, 128);
+		weatherRadiusCapBlocks = IdleAiThrottle.clamp(weatherRadiusCapBlocks, 1, 10);
+
 		if (upscaleBackendId == null || upscaleBackendId.isBlank()) {
 			upscaleBackendId = "none";
 		}
@@ -159,6 +180,9 @@ public final class QuillConfig {
 				+ " beCutoff=" + blockEntityRenderCutoffEnabled + "@" + blockEntityRenderCutoffBlocks
 				+ " particleCutoff=" + particleRenderCutoffEnabled + "@" + particleRenderCutoffBlocks
 				+ " itemMerge=" + itemMergeThrottleEnabled
+				+ " pathNav=" + pathNavThrottleEnabled
+				+ " cloudCap=" + cloudDistanceCapEnabled
+				+ " weatherCap=" + weatherRadiusCapEnabled
 				+ " upscale=" + upscaleBackendId
 				+ " frameGen=" + frameGenEnabled
 				+ " bench=" + benchEnabled;

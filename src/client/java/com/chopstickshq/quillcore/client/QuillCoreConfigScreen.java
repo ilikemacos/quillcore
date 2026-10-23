@@ -86,6 +86,19 @@ public final class QuillCoreConfigScreen {
 				.setDefaultValue(32.0).setMin(0.0).setMax(256.0)
 				.setSaveConsumer(v -> QuillConfig.get().itemMergeThrottlePlayerRadiusBlocks = v)
 				.build());
+		logic.addEntry(entry.startBooleanToggle(Component.literal("Path navigation throttle"), c.pathNavThrottleEnabled)
+				.setDefaultValue(true)
+				.setSaveConsumer(v -> QuillConfig.get().pathNavThrottleEnabled = v)
+				.setTooltip(Component.literal("Skip PathNavigation.tick for far idle mobs with no active path."))
+				.build());
+		logic.addEntry(entry.startIntField(Component.literal("Path nav max skip ticks"), c.pathNavThrottleMaxSkipTicks)
+				.setDefaultValue(2).setMin(0).setMax(10)
+				.setSaveConsumer(v -> QuillConfig.get().pathNavThrottleMaxSkipTicks = v)
+				.build());
+		logic.addEntry(entry.startDoubleField(Component.literal("Path nav player radius"), c.pathNavThrottlePlayerRadiusBlocks)
+				.setDefaultValue(32.0).setMin(0.0).setMax(256.0)
+				.setSaveConsumer(v -> QuillConfig.get().pathNavThrottlePlayerRadiusBlocks = v)
+				.build());
 
 		ConfigCategory render = builder.getOrCreateCategory(Component.literal("Quill Render"));
 		render.addEntry(entry.startBooleanToggle(Component.literal("Entity render cutoff"), c.entityRenderCutoffEnabled)
@@ -114,6 +127,24 @@ public final class QuillCoreConfigScreen {
 		render.addEntry(entry.startDoubleField(Component.literal("Particle cutoff (blocks)"), c.particleRenderCutoffBlocks)
 				.setDefaultValue(64.0).setMin(0.0).setMax(512.0)
 				.setSaveConsumer(v -> QuillConfig.get().particleRenderCutoffBlocks = v)
+				.build());
+		render.addEntry(entry.startBooleanToggle(Component.literal("Cloud distance cap (opt-in)"), c.cloudDistanceCapEnabled)
+				.setDefaultValue(false)
+				.setSaveConsumer(v -> QuillConfig.get().cloudDistanceCapEnabled = v)
+				.setTooltip(Component.literal("Further cap vanilla Cloud Distance (chunks). Default off."))
+				.build());
+		render.addEntry(entry.startIntField(Component.literal("Cloud distance cap (chunks)"), c.cloudDistanceCapChunks)
+				.setDefaultValue(16).setMin(1).setMax(128)
+				.setSaveConsumer(v -> QuillConfig.get().cloudDistanceCapChunks = v)
+				.build());
+		render.addEntry(entry.startBooleanToggle(Component.literal("Weather radius cap (opt-in)"), c.weatherRadiusCapEnabled)
+				.setDefaultValue(false)
+				.setSaveConsumer(v -> QuillConfig.get().weatherRadiusCapEnabled = v)
+				.setTooltip(Component.literal("Cap the rain and snow radius. Low values show a visible edge."))
+				.build());
+		render.addEntry(entry.startIntField(Component.literal("Weather radius cap (blocks)"), c.weatherRadiusCapBlocks)
+				.setDefaultValue(6).setMin(1).setMax(10)
+				.setSaveConsumer(v -> QuillConfig.get().weatherRadiusCapBlocks = v)
 				.build());
 
 		ConfigCategory upscale = builder.getOrCreateCategory(Component.literal("Upscale"));

@@ -5,7 +5,9 @@
 	"client": [
 		"EntityRenderCutoffMixin",
 		"BlockEntityRenderCutoffMixin",
-		"ParticleRenderCutoffMixin"
+		"ParticleRenderCutoffMixin",
+		"CloudDistanceCapMixin",
+		"WeatherRadiusCapMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
