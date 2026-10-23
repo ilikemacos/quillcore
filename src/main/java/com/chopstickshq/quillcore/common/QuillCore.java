@@ -25,6 +25,6 @@ public final class QuillCore implements ModInitializer {
 				BenchHarness.recordTickNanos(System.nanoTime() - tickStartNs);
 			}
 		});
-		LOGGER.info("QuillCore 0.2.0: {}", QuillConfig.get().statusSummary());
+		LOGGER.info("QuillCore 0.4.0: {}", QuillConfig.get().statusSummary());
 	}
 }

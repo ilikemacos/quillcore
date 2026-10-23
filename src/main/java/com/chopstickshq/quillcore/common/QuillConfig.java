@@ -13,7 +13,7 @@ import java.nio.file.Path;
 
 /** Settings stored in config/quillcore.json. */
 public final class QuillConfig {
-	public static final int CURRENT_VERSION = 4;
+	public static final int CURRENT_VERSION = 5;
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 	private static QuillConfig INSTANCE = new QuillConfig();
@@ -58,9 +58,15 @@ public final class QuillConfig {
 	public boolean weatherRadiusCapEnabled = false;
 	public int weatherRadiusCapBlocks = 6;
 
-
-	/** Selected upscale backend id. */
+	// none or fsr1 ("fsr" is the old name for fsr1)
 	public String upscaleBackendId = "none";
+	public String fsrQualityPreset = "QUALITY";
+	// 0 = sharpest, 2 = softest
+	public float fsrSharpness = 0.2f;
+	// 0 = use the preset, 1 = no upscale
+	public float fsrRenderScaleOverride = 0.0f;
+	// unused, kept so old config files still parse
+	public boolean fsrFrameGenEnabled = false;
 	public boolean frameGenEnabled = false;
 
 	public boolean benchEnabled = false;
@@ -126,6 +132,12 @@ public final class QuillConfig {
 		if (configVersion < 4) {
 			configVersion = 4;
 		}
+		if (configVersion < 5) {
+			if ("fsr".equalsIgnoreCase(upscaleBackendId)) {
+				upscaleBackendId = "fsr1";
+			}
+			configVersion = 5;
+		}
 		if (configVersion < CURRENT_VERSION) {
 			configVersion = CURRENT_VERSION;
 		}
@@ -166,6 +178,22 @@ public final class QuillConfig {
 
 		if (upscaleBackendId == null || upscaleBackendId.isBlank()) {
 			upscaleBackendId = "none";
+		} else {
+			upscaleBackendId = upscaleBackendId.trim().toLowerCase();
+			if ("fsr".equals(upscaleBackendId)) {
+				upscaleBackendId = "fsr1";
+			}
+		}
+		if (fsrQualityPreset == null || fsrQualityPreset.isBlank()) {
+			fsrQualityPreset = "QUALITY";
+		}
+		if (Float.isNaN(fsrSharpness) || fsrSharpness < 0.0f || fsrSharpness > 2.0f) {
+			fsrSharpness = 0.2f;
+		}
+		if (Float.isNaN(fsrRenderScaleOverride) || fsrRenderScaleOverride < 0.0f) {
+			fsrRenderScaleOverride = 0.0f;
+		} else if (fsrRenderScaleOverride > 1.0f) {
+			fsrRenderScaleOverride = 1.0f;
 		}
 		frameGenEnabled = false;
 	}
@@ -184,6 +212,8 @@ public final class QuillConfig {
 				+ " cloudCap=" + cloudDistanceCapEnabled
 				+ " weatherCap=" + weatherRadiusCapEnabled
 				+ " upscale=" + upscaleBackendId
+				+ " fsrPreset=" + fsrQualityPreset
+				+ " fsrFG=" + fsrFrameGenEnabled
 				+ " frameGen=" + frameGenEnabled
 				+ " bench=" + benchEnabled;
 	}

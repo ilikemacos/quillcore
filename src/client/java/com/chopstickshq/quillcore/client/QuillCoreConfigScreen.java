@@ -4,6 +4,10 @@ import com.chopstickshq.quillcore.common.QuillConfig;
 import com.chopstickshq.quillcore.compat.CompatStatus;
 import com.chopstickshq.quillcore.framefx.FrameFxLauncher;
 import com.chopstickshq.quillcore.upscale.UpscaleRegistry;
+import com.chopstickshq.quillcore.upscale.fsr.FsrController;
+import com.chopstickshq.quillcore.upscale.fsr.FsrQualityPreset;
+import java.util.Arrays;
+import java.util.List;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
@@ -150,12 +154,32 @@ public final class QuillCoreConfigScreen {
 		ConfigCategory upscale = builder.getOrCreateCategory(Component.literal("Upscale"));
 		upscale.addEntry(entry.startTextDescription(Component.literal(CompatStatus.summarize())).build());
 		upscale.addEntry(entry.startTextDescription(Component.literal(
-				"Backends: " + UpscaleRegistry.summarize() + ". FSR1 is not implemented yet."
+				"Backends: " + UpscaleRegistry.summarize()
+						+ ". Runtime: " + FsrController.runtimeStatus()
 		)).build());
-		upscale.addEntry(entry.startStrField(Component.literal("Upscale backend id"), c.upscaleBackendId)
+		List<String> backendIds = List.of("none", "fsr1");
+		upscale.addEntry(entry.startStringDropdownMenu(Component.literal("Upscale backend"), c.upscaleBackendId)
 				.setDefaultValue("none")
-				.setSaveConsumer(v -> QuillConfig.get().upscaleBackendId = v == null || v.isBlank() ? "none" : v.trim())
-				.setTooltip(Component.literal("none or fsr. Saved, but no backend is available yet."))
+				.setSelections(backendIds)
+				.setSaveConsumer(v -> QuillConfig.get().upscaleBackendId = v == null || v.isBlank() ? "none" : v.trim().toLowerCase())
+				.setTooltip(Component.literal("fsr1 renders the world at a lower scale and upscales it with AMD FSR1."))
+				.build());
+		List<String> presets = Arrays.stream(FsrQualityPreset.values()).map(Enum::name).toList();
+		upscale.addEntry(entry.startStringDropdownMenu(Component.literal("FSR quality preset"), c.fsrQualityPreset)
+				.setDefaultValue("QUALITY")
+				.setSelections(presets)
+				.setSaveConsumer(v -> QuillConfig.get().fsrQualityPreset = v == null ? "QUALITY" : v)
+				.setTooltip(Component.literal("Internal render scale. The HUD stays at native resolution."))
+				.build());
+		upscale.addEntry(entry.startFloatField(Component.literal("FSR RCAS sharpness"), c.fsrSharpness)
+				.setDefaultValue(0.2f).setMin(0.0f).setMax(2.0f)
+				.setSaveConsumer(v -> QuillConfig.get().fsrSharpness = v)
+				.setTooltip(Component.literal("0 = sharpest, 2 = softest."))
+				.build());
+		upscale.addEntry(entry.startFloatField(Component.literal("FSR render scale override"), c.fsrRenderScaleOverride)
+				.setDefaultValue(0.0f).setMin(0.0f).setMax(1.0f)
+				.setSaveConsumer(v -> QuillConfig.get().fsrRenderScaleOverride = v)
+				.setTooltip(Component.literal("0 uses the preset. 1 turns upscaling off."))
 				.build());
 
 		ConfigCategory framefx = builder.getOrCreateCategory(Component.literal("FrameFX launcher"));

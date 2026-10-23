@@ -2,12 +2,27 @@ package com.chopstickshq.quillcore.upscale.fsr;
 
 import com.chopstickshq.quillcore.upscale.UpscaleBackend;
 
-/** FSR1 placeholder. Needs a resizable main render target before it can work. */
+/** Old "fsr" id, same as fsr1. */
 public final class FsrBackend implements UpscaleBackend {
-	@Override public String id() { return "fsr"; }
-	@Override public String displayName() { return "AMD FSR1"; }
-	@Override public boolean isAvailable() { return false; }
-	@Override public String unavailableReason() {
-		return "not implemented yet";
+	private final Fsr1Backend delegate = new Fsr1Backend();
+
+	@Override
+	public String id() {
+		return "fsr";
+	}
+
+	@Override
+	public String displayName() {
+		return delegate.displayName() + " [legacy id]";
+	}
+
+	@Override
+	public boolean isAvailable() {
+		return delegate.isAvailable();
+	}
+
+	@Override
+	public String unavailableReason() {
+		return delegate.unavailableReason();
 	}
 }

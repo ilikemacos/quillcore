@@ -20,6 +20,7 @@ Client (Quill Render):
 - Particle cutoff: particles aren't spawned past 64 blocks from the camera.
 - Cloud distance cap (off by default).
 - Weather radius cap (off by default). Low values show a visible edge.
+- FSR1 upscaling (off by default): renders the world at a lower scale and upscales it with AMD FSR1 (EASU + RCAS) before the HUD is drawn. Sodium may ignore the resize.
 
 There is also a launcher for [Universal-FrameFX](https://github.com/ilikemacos/universal-framefx) on Windows. It runs as a separate app.
 
@@ -57,3 +58,4 @@ Gradle needs JDK 25. The mod targets Java 21.
 ## License
 
 MIT, see [LICENSE](LICENSE).
+FSR1 is © AMD, MIT licensed, see `third_party/amd-fsr1/`.

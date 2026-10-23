@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 (2026-10-22)
+
+- FSR1 upscaling (EASU + RCAS) with quality presets, sharpness and a render scale override
+- HUD is drawn after the upscale, at native resolution
+- Config version 5
+
 ## 0.3.1 (2026-10-22)
 
 - Path navigation throttle for far idle mobs

@@ -1,0 +1,6 @@
+QuillCore
+Copyright (c) QuillCore contributors
+
+This product includes AMD FidelityFX Super Resolution 1 (FSR1) algorithm
+implementations adapted for Minecraft. FSR1 © 2021 Advanced Micro Devices, Inc.
+Licensed under the MIT License, see third_party/amd-fsr1/.
