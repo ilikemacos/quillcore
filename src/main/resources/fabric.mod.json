@@ -3,7 +3,7 @@
 	"id": "quillcore",
 	"version": "${version}",
 	"name": "QuillCore",
-	"description": "One core. Smoother worlds. Open-source Fabric optimization suite (render + logic) with modular upscaling backends.",
+	"description": "One core. Smoother worlds. Open-source Fabric optimization suite — Quill Render, Quill Logic, and modular upscaling backends (honest stubs until real integrations land).",
 	"authors": [
 		"ChopsticksHQ",
 		"ilikemacos"
@@ -22,15 +22,30 @@
 		],
 		"client": [
 			"com.chopstickshq.quillcore.client.QuillCoreClient"
+		],
+		"modmenu": [
+			"com.chopstickshq.quillcore.client.QuillCoreModMenu"
 		]
 	},
 	"mixins": [
-		"quillcore.mixins.json"
+		"quillcore.mixins.json",
+		"quillcore.client.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.19.5",
 		"minecraft": "~1.21.8",
 		"java": ">=21",
 		"fabric-api": "*"
+	},
+	"suggests": {
+		"modmenu": "*",
+		"cloth-config": "*"
+	},
+	"custom": {
+		"modmenu": {
+			"links": {
+				"modmenu.discord": "https://chopstickshq.com/"
+			}
+		}
 	}
 }
