@@ -85,3 +85,22 @@ Temporal frame generation needs motion vectors (or optical flow), depth, HUD-saf
 | Frame gen | Stub | No |
 
 QuillCore loads successfully with all **upscale** backends unavailable. Selecting them must not crash the game. CSR remains permanently excluded.
+
+## Chunk rebuild coalescing (skipped — 0.3.1)
+
+**Not shipped.** Vanilla `SectionRenderDispatcher` already serializes rebuilds through `CompileTaskDynamicQueue`. Sodium replaces that path with `RenderSectionManager` / its own task graph. A safe coalesce would need:
+
+1. Fork-aware hooks (vanilla + Sodium), and
+2. Honest FPS / rebuild-queue benches on a GPU client.
+
+This headless box cannot measure either. Do not ship a no-op “coalesce” flag.
+
+## Cloud distance / weather radius caps (shipped 0.3.1)
+
+- **CloudDistanceCap** — Redirect of the single `Math.min(cloudRange, 128)` in `CloudRenderer.render`. Default **off**.
+- **WeatherRadiusCap** — `@ModifyArg` on `collectColumnInstances` radius. Default **off** (hard edge if too low).
+
+## Path navigation idle throttle (shipped 0.3.1)
+
+Skips `PathNavigation.tick` only when path `isDone()`, no attack target, not hurt, far from players. Never interrupts active path following.
+

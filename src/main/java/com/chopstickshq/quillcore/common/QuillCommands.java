@@ -6,6 +6,7 @@ import com.chopstickshq.quillcore.framefx.FrameFxLauncher;
 import com.chopstickshq.quillcore.logic.BrainIdleThrottleState;
 import com.chopstickshq.quillcore.logic.IdleAiThrottleState;
 import com.chopstickshq.quillcore.logic.ItemMergeThrottleState;
+import com.chopstickshq.quillcore.logic.PathNavThrottleState;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
@@ -32,6 +33,7 @@ public final class QuillCommands {
 							IdleAiThrottleState.clear();
 							BrainIdleThrottleState.clear();
 							ItemMergeThrottleState.clear();
+							PathNavThrottleState.clear();
 							ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] Reloaded config: " + QuillConfig.get().statusSummary()), true);
 							return 1;
 						}))
@@ -41,6 +43,7 @@ public final class QuillCommands {
 							IdleAiThrottleState.clear();
 							BrainIdleThrottleState.clear();
 							ItemMergeThrottleState.clear();
+							PathNavThrottleState.clear();
 							ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] Reset to defaults: " + QuillConfig.get().statusSummary()), true);
 							return 1;
 						}))
@@ -114,6 +117,13 @@ public final class QuillCommands {
 				case "itemMergeThrottleMaxSkipTicks" -> c.itemMergeThrottleMaxSkipTicks = Integer.parseInt(value.trim());
 				case "itemMergeThrottlePlayerRadiusBlocks" -> c.itemMergeThrottlePlayerRadiusBlocks = Double.parseDouble(value.trim());
 				case "frameFxExecutablePath" -> c.frameFxExecutablePath = value.trim();
+				case "pathNavThrottleEnabled" -> c.pathNavThrottleEnabled = parseBool(value);
+				case "pathNavThrottleMaxSkipTicks" -> c.pathNavThrottleMaxSkipTicks = Integer.parseInt(value.trim());
+				case "pathNavThrottlePlayerRadiusBlocks" -> c.pathNavThrottlePlayerRadiusBlocks = Double.parseDouble(value.trim());
+				case "cloudDistanceCapEnabled" -> c.cloudDistanceCapEnabled = parseBool(value);
+				case "cloudDistanceCapChunks" -> c.cloudDistanceCapChunks = Integer.parseInt(value.trim());
+				case "weatherRadiusCapEnabled" -> c.weatherRadiusCapEnabled = parseBool(value);
+				case "weatherRadiusCapBlocks" -> c.weatherRadiusCapBlocks = Integer.parseInt(value.trim());
 				case "upscaleBackendId" -> c.upscaleBackendId = value.trim();
 				case "frameGenEnabled" -> {
 					// Stubs only — force false even if user asks for true.
@@ -123,7 +133,7 @@ public final class QuillCommands {
 				case "benchEnabled" -> c.benchEnabled = parseBool(value);
 				default -> {
 					source.sendFailure(Component.literal("Unknown key: " + key
-							+ " (masterEnabled|renderEnabled|logicEnabled|idleAi*|brainIdle*|entityRenderCutoff*|blockEntityRenderCutoff*|particleRenderCutoff*|itemMergeThrottle*|frameFxExecutablePath|upscaleBackendId|frameGenEnabled|benchEnabled)"));
+							+ " (masterEnabled|renderEnabled|logicEnabled|idleAi*|brainIdle*|entityRenderCutoff*|blockEntityRenderCutoff*|particleRenderCutoff*|itemMergeThrottle*|pathNavThrottle*|cloudDistanceCap*|weatherRadiusCap*|frameFxExecutablePath|upscaleBackendId|frameGenEnabled|benchEnabled)"));
 					return 0;
 				}
 			}
