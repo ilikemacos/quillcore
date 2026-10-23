@@ -9,13 +9,20 @@ It is written from scratch. Projects like Sodium and Lithium were an inspiration
 Server (Quill Logic):
 
 - Idle AI throttle: far idle mobs skip a few goal selector ticks. Sensing and navigation still run.
+- Villager brain throttle: far idle villagers skip `Brain.tick` the same way, but never while trading, panicking or hurt.
+
+Client (Quill Render):
+
+- Entity cutoff: entities past 128 blocks aren't drawn. The camera entity and vehicle are exempt.
+- Block entity cutoff: distant signs and skulls aren't drawn. Chests and other animated block entities are left alone.
 
 Defaults are conservative. `masterEnabled`, `renderEnabled` and `logicEnabled` turn whole groups off.
 
 ## Install
 
 1. Install Fabric Loader 0.19.5+ and [Fabric API](https://modrinth.com/mod/fabric-api) for 1.21.8.
-2. Put the QuillCore jar from [Releases](https://github.com/ilikemacos/quillcore/releases) in `mods/`.
+2. Optional: [ModMenu](https://modrinth.com/mod/modmenu) and [Cloth Config](https://modrinth.com/mod/cloth-config) for the settings screen.
+3. Put the QuillCore jar from [Releases](https://github.com/ilikemacos/quillcore/releases) in `mods/`.
 
 Settings live in `config/quillcore.json`.
 
@@ -27,6 +34,7 @@ Permission level 2.
 |---|---|
 | `/quillcore status` | Current settings |
 | `/quillcore reload` | Reload the config file |
+| `/quillcore reset` | Restore defaults |
 | `/quillcore set <key> <value>` | Change a setting |
 | `/quillcore bench start\|stop\|report` | Sample tick and frame times |
 

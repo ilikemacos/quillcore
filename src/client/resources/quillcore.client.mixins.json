@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"package": "com.chopstickshq.quillcore.render.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"EntityRenderCutoffMixin",
+		"BlockEntityRenderCutoffMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

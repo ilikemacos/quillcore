@@ -13,7 +13,7 @@ import java.nio.file.Path;
 
 /** Settings stored in config/quillcore.json. */
 public final class QuillConfig {
-	public static final int CURRENT_VERSION = 1;
+	public static final int CURRENT_VERSION = 2;
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 	private static QuillConfig INSTANCE = new QuillConfig();
@@ -22,9 +22,26 @@ public final class QuillConfig {
 	public boolean masterEnabled = true;
 	public boolean renderEnabled = true;
 	public boolean logicEnabled = true;
+
 	public boolean idleAiThrottleEnabled = true;
 	public int idleAiThrottleMaxSkipTicks = 2;
 	public double idleAiThrottlePlayerRadiusBlocks = 32.0;
+
+	public boolean brainIdleThrottleEnabled = true;
+	public int brainIdleThrottleMaxSkipTicks = 2;
+	public double brainIdleThrottlePlayerRadiusBlocks = 32.0;
+
+	public boolean entityRenderCutoffEnabled = true;
+	public double entityRenderCutoffBlocks = 128.0;
+
+	// signs and skulls only
+	public boolean blockEntityRenderCutoffEnabled = true;
+	public double blockEntityRenderCutoffBlocks = 96.0;
+
+	/** Selected upscale backend id. */
+	public String upscaleBackendId = "none";
+	public boolean frameGenEnabled = false;
+
 	public boolean benchEnabled = false;
 
 	private QuillConfig() {}
@@ -49,6 +66,7 @@ public final class QuillConfig {
 			if (loaded == null) {
 				INSTANCE = new QuillConfig();
 			} else {
+				loaded.migrate();
 				loaded.sanitize();
 				INSTANCE = loaded;
 			}
@@ -72,21 +90,53 @@ public final class QuillConfig {
 		}
 	}
 
+	public static void resetToDefaults() {
+		INSTANCE = new QuillConfig();
+		save();
+	}
+
+	public void migrate() {
+		if (configVersion < 2) {
+			// New 0.2.0 fields keep their field initializers when Gson leaves them default.
+			configVersion = 2;
+		}
+		if (configVersion < CURRENT_VERSION) {
+			configVersion = CURRENT_VERSION;
+		}
+	}
+
 	public void sanitize() {
 		configVersion = CURRENT_VERSION;
 		idleAiThrottleMaxSkipTicks = IdleAiThrottle.clamp(idleAiThrottleMaxSkipTicks, 0, 10);
+		brainIdleThrottleMaxSkipTicks = IdleAiThrottle.clamp(brainIdleThrottleMaxSkipTicks, 0, 10);
 		if (Double.isNaN(idleAiThrottlePlayerRadiusBlocks) || idleAiThrottlePlayerRadiusBlocks < 0) {
 			idleAiThrottlePlayerRadiusBlocks = 32.0;
 		}
+		if (Double.isNaN(brainIdleThrottlePlayerRadiusBlocks) || brainIdleThrottlePlayerRadiusBlocks < 0) {
+			brainIdleThrottlePlayerRadiusBlocks = 32.0;
+		}
+		if (Double.isNaN(entityRenderCutoffBlocks) || entityRenderCutoffBlocks < 0) {
+			entityRenderCutoffBlocks = 128.0;
+		}
+		if (Double.isNaN(blockEntityRenderCutoffBlocks) || blockEntityRenderCutoffBlocks < 0) {
+			blockEntityRenderCutoffBlocks = 96.0;
+		}
+		if (upscaleBackendId == null || upscaleBackendId.isBlank()) {
+			upscaleBackendId = "none";
+		}
+		frameGenEnabled = false;
 	}
 
 	public String statusSummary() {
 		return "master=" + masterEnabled
 				+ " render=" + renderEnabled
 				+ " logic=" + logicEnabled
-				+ " idleAiThrottle=" + idleAiThrottleEnabled
-				+ " maxSkip=" + idleAiThrottleMaxSkipTicks
-				+ " radius=" + idleAiThrottlePlayerRadiusBlocks
+				+ " idleAi=" + idleAiThrottleEnabled
+				+ " brainAi=" + brainIdleThrottleEnabled
+				+ " entCutoff=" + entityRenderCutoffEnabled + "@" + entityRenderCutoffBlocks
+				+ " beCutoff=" + blockEntityRenderCutoffEnabled + "@" + blockEntityRenderCutoffBlocks
+				+ " upscale=" + upscaleBackendId
+				+ " frameGen=" + frameGenEnabled
 				+ " bench=" + benchEnabled;
 	}
 }

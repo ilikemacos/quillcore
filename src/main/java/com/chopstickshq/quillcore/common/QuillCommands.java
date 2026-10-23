@@ -2,6 +2,7 @@ package com.chopstickshq.quillcore.common;
 
 import com.chopstickshq.quillcore.bench.BenchHarness;
 import com.chopstickshq.quillcore.compat.CompatStatus;
+import com.chopstickshq.quillcore.logic.BrainIdleThrottleState;
 import com.chopstickshq.quillcore.logic.IdleAiThrottleState;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -26,7 +27,16 @@ public final class QuillCommands {
 						.executes(ctx -> {
 							QuillConfig.load();
 							IdleAiThrottleState.clear();
+							BrainIdleThrottleState.clear();
 							ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] Reloaded config: " + QuillConfig.get().statusSummary()), true);
+							return 1;
+						}))
+				.then(Commands.literal("reset")
+						.executes(ctx -> {
+							QuillConfig.resetToDefaults();
+							IdleAiThrottleState.clear();
+							BrainIdleThrottleState.clear();
+							ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] Reset to defaults: " + QuillConfig.get().statusSummary()), true);
 							return 1;
 						}))
 				.then(Commands.literal("set")
@@ -38,6 +48,9 @@ public final class QuillCommands {
 				.then(Commands.literal("bench")
 						.then(Commands.literal("start")
 								.executes(ctx -> {
+									QuillConfig c = QuillConfig.get();
+									c.benchEnabled = true;
+									QuillConfig.save();
 									BenchHarness.start("manual");
 									ctx.getSource().sendSuccess(() -> Component.literal("[QuillCore] Bench started."), false);
 									return 1;
@@ -66,10 +79,22 @@ public final class QuillCommands {
 				case "idleAiThrottleEnabled" -> c.idleAiThrottleEnabled = parseBool(value);
 				case "idleAiThrottleMaxSkipTicks" -> c.idleAiThrottleMaxSkipTicks = Integer.parseInt(value.trim());
 				case "idleAiThrottlePlayerRadiusBlocks" -> c.idleAiThrottlePlayerRadiusBlocks = Double.parseDouble(value.trim());
+				case "brainIdleThrottleEnabled" -> c.brainIdleThrottleEnabled = parseBool(value);
+				case "brainIdleThrottleMaxSkipTicks" -> c.brainIdleThrottleMaxSkipTicks = Integer.parseInt(value.trim());
+				case "brainIdleThrottlePlayerRadiusBlocks" -> c.brainIdleThrottlePlayerRadiusBlocks = Double.parseDouble(value.trim());
+				case "entityRenderCutoffEnabled" -> c.entityRenderCutoffEnabled = parseBool(value);
+				case "entityRenderCutoffBlocks" -> c.entityRenderCutoffBlocks = Double.parseDouble(value.trim());
+				case "blockEntityRenderCutoffEnabled" -> c.blockEntityRenderCutoffEnabled = parseBool(value);
+				case "blockEntityRenderCutoffBlocks" -> c.blockEntityRenderCutoffBlocks = Double.parseDouble(value.trim());
+				case "upscaleBackendId" -> c.upscaleBackendId = value.trim();
+				case "frameGenEnabled" -> {
+					c.frameGenEnabled = false;
+					source.sendSuccess(() -> Component.literal("[QuillCore] frameGenEnabled is unused and stays false."), false);
+				}
 				case "benchEnabled" -> c.benchEnabled = parseBool(value);
 				default -> {
 					source.sendFailure(Component.literal("Unknown key: " + key
-							+ " (masterEnabled|renderEnabled|logicEnabled|idleAiThrottleEnabled|idleAiThrottleMaxSkipTicks|idleAiThrottlePlayerRadiusBlocks|benchEnabled)"));
+							+ " (masterEnabled|renderEnabled|logicEnabled|idleAi*|brainIdle*|entityRenderCutoff*|blockEntityRenderCutoff*|upscaleBackendId|frameGenEnabled|benchEnabled)"));
 					return 0;
 				}
 			}

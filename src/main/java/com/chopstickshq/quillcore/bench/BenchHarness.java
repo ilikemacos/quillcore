@@ -1,6 +1,7 @@
 package com.chopstickshq.quillcore.bench;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -12,6 +13,7 @@ public final class BenchHarness {
 	private static long startedAtMs;
 	private static long startedUsedBytes;
 	private static final List<Long> tickSamplesNs = new ArrayList<>();
+	private static final List<Long> frameSamplesNs = new ArrayList<>();
 
 	private BenchHarness() {}
 
@@ -19,6 +21,7 @@ public final class BenchHarness {
 		running = true;
 		scenarioId = scenario == null ? "idle" : scenario;
 		tickSamplesNs.clear();
+		frameSamplesNs.clear();
 		startedAtMs = System.currentTimeMillis();
 		startedUsedBytes = usedMemory();
 	}
@@ -31,37 +34,66 @@ public final class BenchHarness {
 		return running;
 	}
 
-	/** Optional: record a server tick duration sample while a bench is running. */
 	public static synchronized void recordTickNanos(long nanos) {
-		if (running) {
+		if (running && nanos > 0L && nanos < 5_000_000_000L) {
 			tickSamplesNs.add(nanos);
 		}
 	}
 
+	public static synchronized void recordFrameNanos(long nanos) {
+		if (running && nanos > 0L && nanos < 5_000_000_000L) {
+			frameSamplesNs.add(nanos);
+		}
+	}
+
 	public static synchronized String report() {
-		BenchMetrics m = snapshot();
-		return m.toString();
+		return snapshot().toString();
 	}
 
 	public static synchronized BenchMetrics snapshot() {
 		BenchMetrics m = new BenchMetrics();
 		m.scenarioId = scenarioId;
-		if (tickSamplesNs.isEmpty()) {
+		m.memoryUsedBytes = usedMemory();
+		if (tickSamplesNs.isEmpty() && frameSamplesNs.isEmpty()) {
 			m.notes = running
-					? "running but no tick samples yet; FPS fields intentionally empty on headless"
+					? "running but no samples yet"
 					: "no samples collected";
-			m.memoryUsedBytes = usedMemory();
 			return m;
 		}
-		long sum = 0;
-		for (long n : tickSamplesNs) sum += n;
-		m.tickDurationMs = (sum / (double) tickSamplesNs.size()) / 1_000_000.0;
-		m.memoryUsedBytes = usedMemory();
+		if (!tickSamplesNs.isEmpty()) {
+			m.tickDurationMs = averageMs(tickSamplesNs);
+		}
+		if (!frameSamplesNs.isEmpty()) {
+			List<Long> sorted = new ArrayList<>(frameSamplesNs);
+			Collections.sort(sorted);
+			m.frameTimeP50Ms = percentileMs(sorted, 0.50);
+			m.frameTimeP99Ms = percentileMs(sorted, 0.99);
+			double avgMs = averageMs(sorted);
+			if (avgMs > 0.0) {
+				m.avgFps = 1000.0 / avgMs;
+			}
+			// 1% low from the p99 frame time
+			if (m.frameTimeP99Ms != null && m.frameTimeP99Ms > 0.0) {
+				m.pct1LowFps = 1000.0 / m.frameTimeP99Ms;
+			}
+		}
 		long elapsedMs = Math.max(1L, System.currentTimeMillis() - startedAtMs);
 		long delta = Math.max(0L, m.memoryUsedBytes - startedUsedBytes);
 		m.allocRateBytesPerSec = (delta * 1000.0) / elapsedMs;
-		m.notes = "tick samples=" + tickSamplesNs.size() + "; avg/1%low FPS not measured (no frame clock hooked in 0.1.0)";
+		m.notes = "ticks=" + tickSamplesNs.size() + " frames=" + frameSamplesNs.size();
 		return m;
+	}
+
+	private static double averageMs(List<Long> nanos) {
+		long sum = 0L;
+		for (long n : nanos) sum += n;
+		return (sum / (double) nanos.size()) / 1_000_000.0;
+	}
+
+	private static double percentileMs(List<Long> sortedNanos, double p) {
+		if (sortedNanos.isEmpty()) return Double.NaN;
+		int idx = (int) Math.min(sortedNanos.size() - 1, Math.max(0, Math.round(p * (sortedNanos.size() - 1))));
+		return sortedNanos.get(idx) / 1_000_000.0;
 	}
 
 	private static long usedMemory() {
