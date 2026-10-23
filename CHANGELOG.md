@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.1, 2026-10-22
+
+### Added
+- Quill Logic: PathNavigation idle throttle for far path-done mobs (no attack target / not hurt).
+- Quill Render: opt-in cloud distance cap (`CloudRenderer` cloudRange min redirect). **Default off.**
+- Quill Render: opt-in weather rain/snow column radius cap. **Default off.**
+- Unit tests: `PathNavThrottleTest`, `CloudDistanceCapTest`, `WeatherRadiusCapTest`.
+
+### Changed
+- Version bump to 0.3.1; config schema version 4 with migration.
+
+### Not shipped
+- Chunk rebuild coalescing (Sodium divergence; unmeasurable here).
+- Spatial FSR1 / XeSS / temporal FSR / frame gen / CSR.
+- Second Loom target for 1.21.9–1.21.11 (notes only).
+- No fabricated benches.
+
 ## 0.3.0, 2026-10-22
 
 ### Added

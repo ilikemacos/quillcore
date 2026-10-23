@@ -3,7 +3,7 @@
 	"id": "quillcore",
 	"version": "${version}",
 	"name": "QuillCore",
-	"description": "One core. Smoother worlds. Open-source Fabric optimization suite — Quill Render, Quill Logic, and modular upscaling backends (honest stubs until real integrations land).",
+	"description": "One core. Smoother worlds. Fabric optimization suite for Minecraft 1.21.8 \u2014 Quill Logic throttles, Quill Render cutoffs, honest upscale stubs until a safe framebuffer hook exists.",
 	"authors": [
 		"ChopsticksHQ",
 		"ilikemacos"

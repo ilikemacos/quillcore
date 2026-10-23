@@ -6,7 +6,8 @@
 		"MobServerAiThrottleMixin",
 		"VillagerBrainThrottleMixin",
 		"ItemEntityMergeThrottleMixin",
-		"ExperienceOrbMergeThrottleMixin"
+		"ExperienceOrbMergeThrottleMixin",
+		"PathNavigationThrottleMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
