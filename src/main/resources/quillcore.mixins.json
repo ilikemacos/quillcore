@@ -15,7 +15,9 @@
 		"PistonBaseBlockDirectionsMixin",
 		"PistonStructureResolverDirectionsMixin",
 		"FurnaceIdleMixin",
-		"CampfireIdleMixin"
+		"CampfireIdleMixin",
+		"SectionStorageColumnsMixin",
+		"PoiManagerColumnsMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
