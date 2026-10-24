@@ -20,6 +20,9 @@
 		"PoiManagerColumnsMixin",
 		"EntitySectionCollidersMixin",
 		"LevelEntityGetterAdapterAccessor",
+		"BlockBehaviourAccessor",
+		"BlockStateCollisionKindMixin",
+		"BlockCollisionsFastMixin",
 		"LevelEntitiesAccessor",
 		"EntityCollideSkipMixin"
 	],
