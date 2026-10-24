@@ -2,6 +2,7 @@ package com.chopstickshq.quillcore.render.mixin;
 
 import com.chopstickshq.quillcore.render.compact.QuillBufferTag;
 import com.chopstickshq.quillcore.render.compact.QuillTerrainPipeline;
+import com.chopstickshq.quillcore.render.region.RegionDraws;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderPass;
@@ -18,7 +19,7 @@ import java.util.List;
 /**
  * Splits each layer's batched section draw into a vanilla sub-batch (pipeline already set by vanilla) and a Quill
  * sub-batch drawn with {@link QuillTerrainPipeline#SOLID}. Only SOLID buffers are ever tagged compact, so other
- * layers and an all-vanilla SOLID list take the unchanged single call.
+ * layers and an all-vanilla SOLID list take the unchanged single call. Compact draws are folded per region slab.
  */
 @Mixin(ChunkSectionsToRender.class)
 public abstract class ChunkSectionsSplitDrawMixin {
@@ -49,7 +50,7 @@ public abstract class ChunkSectionsSplitDrawMixin {
 		}
 		if (!vanilla.isEmpty()) quillcore$draw(pass, vanilla, indexBuffer, indexType, dynamicUniforms, uniformArgs);
 		pass.setPipeline(QuillTerrainPipeline.SOLID);
-		quillcore$draw(pass, compact, indexBuffer, indexType, dynamicUniforms, uniformArgs);
+		quillcore$draw(pass, RegionDraws.merge(compact), indexBuffer, indexType, dynamicUniforms, uniformArgs);
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
