@@ -370,6 +370,72 @@ public class QuillVanillaGameTests {
 		});
 	}
 
+	private static String poiQueries(net.minecraft.world.entity.ai.village.poi.PoiManager m, BlockPos c) {
+		StringBuilder sb = new StringBuilder();
+		java.util.function.Predicate<net.minecraft.core.Holder<net.minecraft.world.entity.ai.village.poi.PoiType>> any = h -> true;
+		java.util.function.Predicate<net.minecraft.core.Holder<net.minecraft.world.entity.ai.village.poi.PoiType>> home = h -> h.is(net.minecraft.world.entity.ai.village.poi.PoiTypes.HOME);
+		StringBuilder seen = new StringBuilder();
+		java.util.function.Predicate<BlockPos> odd = p -> {
+			seen.append(p.toShortString()).append(';');
+			return ((p.getX() + p.getZ()) & 1) == 0;
+		};
+		for (int r : new int[] {1, 5, 16, 17, 40}) {
+			for (var occ : net.minecraft.world.entity.ai.village.poi.PoiManager.Occupancy.values()) {
+				for (var t : java.util.List.of(any, home)) {
+					sb.append(r).append(occ).append(' ');
+					sb.append(m.getCountInRange(t, c, r, occ)).append(' ');
+					sb.append(m.findClosest(t, c, r, occ)).append(' ');
+					sb.append(m.findClosest(t, odd, c, r, occ)).append(' ');
+					sb.append(m.findClosestWithType(t, c, r, occ).map(p -> p.getSecond())).append(' ');
+					sb.append(m.findAllClosestFirstWithType(t, odd, c, r, occ).map(p -> p.getSecond().toShortString()).toList()).append('\n');
+				}
+			}
+		}
+		return sb + "|" + seen;
+	}
+
+	@GameTest(maxTicks = 20)
+	public void poiRangeLoopsMatchVanilla(GameTestHelper h) {
+		var level = h.getLevel();
+		var m = level.getPoiManager();
+		var reg = level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.POINT_OF_INTEREST_TYPE);
+		var homeT = reg.getOrThrow(net.minecraft.world.entity.ai.village.poi.PoiTypes.HOME);
+		var meetT = reg.getOrThrow(net.minecraft.world.entity.ai.village.poi.PoiTypes.MEETING);
+		BlockPos c = h.absolutePos(new BlockPos(1, 1, 1));
+		java.util.Random r = new java.util.Random(7);
+		java.util.List<BlockPos> added = new java.util.ArrayList<>();
+		// Spread over several chunks and section heights, with mirrored pairs so distances tie.
+		for (int i = 0; i < 60; i++) {
+			int dx = r.nextInt(81) - 40, dz = r.nextInt(81) - 40, dy = r.nextInt(40);
+			for (BlockPos p : new BlockPos[] {c.offset(dx, dy, dz), c.offset(-dx, dy, -dz)}) {
+				if (m.getType(p).isPresent() || added.contains(p)) continue;
+				m.add(p, (i & 1) == 0 ? homeT : meetT);
+				added.add(p);
+			}
+		}
+		try {
+			// Occupy some so HAS_SPACE / IS_OCCUPIED differ.
+			for (int i = 0; i < added.size(); i += 3) m.take(x -> true, (t, p) -> true, added.get(i), 0);
+			String fast = poiQueries(m, c);
+			String slow;
+			com.chopstickshq.quillcore.logic.PoiRange.forceVanilla = true;
+			try {
+				slow = poiQueries(m, c);
+			} finally {
+				com.chopstickshq.quillcore.logic.PoiRange.forceVanilla = false;
+			}
+			if (!fast.equals(slow)) {
+				int i = 0;
+				while (i < Math.min(fast.length(), slow.length()) && fast.charAt(i) == slow.charAt(i)) i++;
+				h.fail(msg("poi differs at " + i + ": " + fast.substring(Math.max(0, i - 40), Math.min(fast.length(), i + 40)) + " vs "
+						+ slow.substring(Math.max(0, i - 40), Math.min(slow.length(), i + 40))));
+			}
+		} finally {
+			for (BlockPos p : added) m.remove(p);
+		}
+		h.succeed();
+	}
+
 	@GameTest(maxTicks = 20)
 	public void blockCollisionsMatchVanilla(GameTestHelper h) {
 		BlockState[] mix = {Blocks.AIR.defaultBlockState(), Blocks.AIR.defaultBlockState(), Blocks.STONE.defaultBlockState(), Blocks.STONE_SLAB.defaultBlockState(),
