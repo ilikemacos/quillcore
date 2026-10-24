@@ -6,6 +6,7 @@
 - Compact 13 byte block vertex format, not used for rendering yet
 - Bench reports vanilla vs compact vertex bytes for a sample section
 - Bench reports 0.1% low FPS and runs with no frame cap
+- Experimental compact SOLID chunk meshes at 20 bytes per vertex, off by default
 
 ## 0.4.0 (2026-10-22)
 

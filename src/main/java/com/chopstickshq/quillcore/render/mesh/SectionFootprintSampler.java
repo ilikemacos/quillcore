@@ -5,6 +5,7 @@ import java.util.List;
 
 /**
  * Compares vanilla and compact byte size for a list of vertices by encoding each one.
+ * Used by tests. Live sections are counted in {@link QuillMeshStats}.
  */
 public final class SectionFootprintSampler {
 	public record Footprint(long vertexCount, long vanillaBytes, long quillBytes, double reductionPct) {}
@@ -39,7 +40,7 @@ public final class SectionFootprintSampler {
 						float x = axis == 0 ? fixed : da;
 						float y = axis == 1 ? fixed : (axis == 0 ? da : db);
 						float z = axis == 2 ? fixed : db;
-						out.add(new QuillCompactVertex(x, y, z, face, da / 16f, db / 16f, 0, 15));
+						out.add(new QuillCompactVertex(x, y, z, face, 0xFFFFFFFF, da / 16f, db / 16f, (short) 0, (short) 240));
 					}
 				}
 			}

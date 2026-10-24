@@ -70,8 +70,11 @@ public final class QuillConfig {
 	public boolean frameGenEnabled = false;
 
 	public boolean benchEnabled = false;
-	/** Bench only: record vertex bytes for a sample section. */
-	public boolean vertexFootprintSampleEnabled = true;
+	/**
+	 * Experimental: draw SOLID chunk meshes in the 20 byte compact format. Sections that don't fit stay
+	 * vanilla. Changing it needs {@code LevelRenderer.allChanged()}.
+	 */
+	public boolean compactMeshEnabled = false;
 
 	private QuillConfig() {}
 
@@ -200,6 +203,11 @@ public final class QuillConfig {
 		frameGenEnabled = false;
 	}
 
+	/** Compact meshing is in effect only when the master and render switches are also on. */
+	public boolean compactMeshActive() {
+		return masterEnabled && renderEnabled && compactMeshEnabled;
+	}
+
 	public String statusSummary() {
 		return "master=" + masterEnabled
 				+ " render=" + renderEnabled
@@ -217,6 +225,7 @@ public final class QuillConfig {
 				+ " fsrPreset=" + fsrQualityPreset
 				+ " fsrFG=" + fsrFrameGenEnabled
 				+ " frameGen=" + frameGenEnabled
+				+ " compactMesh=" + compactMeshEnabled
 				+ " bench=" + benchEnabled;
 	}
 }
