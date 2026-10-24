@@ -49,6 +49,7 @@ loom {
 			vmArg "-Dfabric-api.gametest"
 			vmArg "-Dfabric-api.gametest.report-file=${reportDir}/gametest-on.xml"
 			vmArg "-Dquillcore.test.logic=on"
+			if (project.hasProperty('gtFilter')) vmArg "-Dfabric-api.gametest.filter=${project.property('gtFilter')}"
 			runDir "build/run-gametest-on"
 			ideConfigGenerated false
 		}
@@ -59,6 +60,7 @@ loom {
 			vmArg "-Dfabric-api.gametest"
 			vmArg "-Dfabric-api.gametest.report-file=${reportDir}/gametest-off.xml"
 			vmArg "-Dquillcore.test.logic=off"
+			if (project.hasProperty('gtFilter')) vmArg "-Dfabric-api.gametest.filter=${project.property('gtFilter')}"
 			runDir "build/run-gametest-off"
 			ideConfigGenerated false
 		}

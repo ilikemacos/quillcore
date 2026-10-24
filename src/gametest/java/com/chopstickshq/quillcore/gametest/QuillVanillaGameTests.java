@@ -39,6 +39,9 @@ public class QuillVanillaGameTests {
 		Villager v = h.spawn(EntityType.VILLAGER, pos);
 		v.setVillagerXp(1); // keeps the job without a workstation
 		v.setVillagerData(v.getVillagerData().withProfession(BuiltInRegistries.VILLAGER_PROFESSION.getOrThrow(job)));
+		// setVillagerData keeps the brain built for the spawn profession (NONE), which still hunts any job site and
+		// fills POTENTIAL_JOB_SITE on its own schedule; rebuild it as a villager loaded with this job would have.
+		v.refreshBrain(h.getLevel());
 		return v;
 	}
 
@@ -129,7 +132,7 @@ public class QuillVanillaGameTests {
 	}
 
 	// run a job-site search by hand every tick and collect what it remembers.
-	// The nitwit's own brain drops the memory again on its next tick, so read it right after the search.
+	// Read the memory right after the search; the villager's brain is built for its real job (see villager()).
 	private static void searchJobs(GameTestHelper h, Villager v, java.util.function.Predicate<net.minecraft.core.Holder<PoiType>> type, java.util.function.Consumer<List<GlobalPos>> check) {
 		BehaviorControl<PathfinderMob> search = AcquirePoi.create(type, MemoryModuleType.JOB_SITE, MemoryModuleType.POTENTIAL_JOB_SITE, true, Optional.empty(), (l, p) -> true);
 		List<GlobalPos> found = new java.util.ArrayList<>();
