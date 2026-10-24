@@ -142,3 +142,18 @@ Still one GL call per merged range. Step 5 is next. None of the steps have a G14
 10. hopper inventory tracking
 
 Then: off-thread meshing, entity class groups, collision fast path, shape caches, translucent sorting.
+
+## G14 qbench, 2026-10-23 (seed 20261023, heap measured after a full GC at the end of warm-up)
+
+| setup | avgFps r1/r2 | low1 | low0.1 | MSPT (pen) | heap after GC MB |
+|---|---|---|---|---|---|
+| region-arena (compact) | 255.1 / 250.7 | 115.8 / 107.4 | 57.4 / 58.8 | 14.7 / 15.2 | 518 / 518 |
+| #25 head (compact) | 259.9 / 255.4 | 118.1 / 108.9 | 58.0 / 60.5 | 16.2 / 16.3 | 519 / 518 |
+| step 5 multidraw (compact) | 259.9 / 252.2 | 114.9 / 104.2 | 58.0 / 55.8 | 15.8 / 16.3 | 519 / 518 |
+| Sodium+Lithium | 299.4 / 297.7 | 150.9 / 142.9 | 68.0 / 67.8 | 11.0 / 11.8 | 486 / 484 |
+| main | 256.4 / 251.9 | 117.3 / 112.1 | 57.8 / 62.7 | 15.4 / 15.6 | 518 / 518 |
+| #17 | 257.6 / 253.3 | 117.5 / 111.8 | 55.9 / 52.6 | 14.5 / 14.6 | 512 / 512 |
+| #18 | 256.1 / 251.6 | 115.1 / 112.0 | 59.0 / 56.4 | 15.4 / 15.0 | 508 / 508 |
+| #21 | 254.8 / 254.9 | 115.9 / 115.9 | 59.8 / 56.2 | 15.1 / 15.0 | 509 / 507 |
+
+Step 5 (one glMultiDrawElements per region slab, #26): xvfb mesh diff 0.019/255, solid draws 365 -> 10 GL calls. No measurable FPS change on the G14.
