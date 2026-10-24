@@ -1,9 +1,11 @@
 package com.chopstickshq.quillcore.gametest;
 
 import com.chopstickshq.quillcore.bench.BenchHarness;
+import com.chopstickshq.quillcore.bench.BenchMetrics;
 import com.chopstickshq.quillcore.bench.BenchReport;
 import com.chopstickshq.quillcore.common.QuillConfig;
 import com.chopstickshq.quillcore.common.QuillCore;
+import com.chopstickshq.quillcore.render.mesh.SectionFootprintSampler;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -40,6 +42,8 @@ public final class QuillAutoBench implements ClientModInitializer {
 	private int segmentStart;
 	private boolean done;
 	private final BenchReport report = new BenchReport();
+	/** Same for every segment, so it is computed once. */
+	private SectionFootprintSampler.Footprint footprint;
 
 	@Override
 	public void onInitializeClient() {
@@ -92,7 +96,15 @@ public final class QuillAutoBench implements ClientModInitializer {
 		if (idx != segment) {
 			if (segment >= 0) {
 				BenchHarness.stop();
-				report.add(SEGMENTS[segment], BenchHarness.snapshot(), BenchHarness.frameSamplesCopy());
+				BenchMetrics m = BenchHarness.snapshot();
+				if (QuillConfig.get().vertexFootprintSampleEnabled) {
+					if (footprint == null) footprint = SectionFootprintSampler.sampleSolidSectionShell();
+					m.vanillaVertexBytes = footprint.vanillaBytes();
+					m.quillVertexBytes = footprint.quillBytes();
+					m.vertexByteReductionPct = footprint.reductionPct();
+					m.notes = m.notes + ", vertex bytes are from a sample section";
+				}
+				report.add(SEGMENTS[segment], m, BenchHarness.frameSamplesCopy());
 				QuillCore.LOGGER.info("[quill-bench] {} -> {}", SEGMENTS[segment], BenchHarness.report());
 			}
 			segment = idx;

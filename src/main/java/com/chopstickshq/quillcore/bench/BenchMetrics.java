@@ -10,6 +10,10 @@ public final class BenchMetrics {
 	public Double tickDurationMs;
 	public Long memoryUsedBytes;
 	public Double allocRateBytesPerSec;
+	/** Vertex bytes for a sample section, not live meshes. */
+	public Long vanillaVertexBytes;
+	public Long quillVertexBytes;
+	public Double vertexByteReductionPct;
 	public String notes = "unmeasured";
 
 	public boolean hasMeasurements() {
@@ -29,6 +33,9 @@ public final class BenchMetrics {
 				+ " tickMs=" + tickDurationMs
 				+ " mem=" + memoryUsedBytes
 				+ " allocBps=" + allocRateBytesPerSec
+				+ " vanillaVtxBytes=" + vanillaVertexBytes
+				+ " quillVtxBytes=" + quillVertexBytes
+				+ " vtxReductionPct=" + vertexByteReductionPct
 				+ " notes=" + notes;
 	}
 }

@@ -3,6 +3,8 @@
 ## Unreleased
 
 - QuillCore no longer loads next to Sodium
+- Compact 13 byte block vertex format, not used for rendering yet
+- Bench reports vanilla vs compact vertex bytes for a sample section
 
 ## 0.4.0 (2026-10-22)
 

@@ -70,6 +70,8 @@ public final class QuillConfig {
 	public boolean frameGenEnabled = false;
 
 	public boolean benchEnabled = false;
+	/** Bench only: record vertex bytes for a sample section. */
+	public boolean vertexFootprintSampleEnabled = true;
 
 	private QuillConfig() {}
 

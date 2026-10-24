@@ -10,7 +10,6 @@ QuillCore bench compare checklist (run on a real gaming PC)
    - vanilla (QuillCore unloaded or masterEnabled=false)
    - quillcore alone
    - sodium + lithium alone
-   - sodium + lithium + quillcore
 4. For each: /quillcore bench start → 60s same camera path → /quillcore bench report
 5. Record avg FPS, 1% low and tick ms
 
