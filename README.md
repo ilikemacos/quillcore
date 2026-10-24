@@ -2,7 +2,7 @@
 
 Fabric performance mod for Minecraft Java 1.21.8. It throttles server-side work for mobs and items far from players and trims client rendering that you can't see anyway.
 
-It is written from scratch. Projects like Sodium and Lithium were an inspiration, but no code is taken from them.
+It is written from scratch and uses no code from Sodium or Lithium. Quill Render is growing its own chunk renderer, so QuillCore won't load next to Sodium. Until that renderer lands, chunks are drawn by vanilla.
 
 ## Features
 
@@ -20,7 +20,7 @@ Client (Quill Render):
 - Particle cutoff: particles aren't spawned past 64 blocks from the camera.
 - Cloud distance cap (off by default).
 - Weather radius cap (off by default). Low values show a visible edge.
-- FSR1 upscaling (off by default): renders the world at a lower scale and upscales it with AMD FSR1 (EASU + RCAS) before the HUD is drawn. Sodium may ignore the resize.
+- FSR1 upscaling (off by default): renders the world at a lower scale and upscales it with AMD FSR1 (EASU + RCAS) before the HUD is drawn.
 
 There is also a launcher for [Universal-FrameFX](https://github.com/ilikemacos/universal-framefx) on Windows. It runs as a separate app.
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- QuillCore no longer loads next to Sodium
+
 ## 0.4.0 (2026-10-22)
 
 - FSR1 upscaling (EASU + RCAS) with quality presets, sharpness and a render scale override

@@ -37,6 +37,9 @@
 		"java": ">=21",
 		"fabric-api": "*"
 	},
+	"breaks": {
+		"sodium": "*"
+	},
 	"suggests": {
 		"modmenu": "*",
 		"cloth-config": "*"
