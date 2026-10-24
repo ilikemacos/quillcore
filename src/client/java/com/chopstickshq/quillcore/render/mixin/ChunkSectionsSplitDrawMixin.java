@@ -8,9 +8,10 @@ import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.chunk.ChunkSectionsToRender;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -23,10 +24,10 @@ import java.util.List;
  */
 @Mixin(ChunkSectionsToRender.class)
 public abstract class ChunkSectionsSplitDrawMixin {
-	@Redirect(method = "renderGroup", at = @At(value = "INVOKE",
+	@WrapOperation(method = "renderGroup", at = @At(value = "INVOKE",
 			target = "Lcom/mojang/blaze3d/systems/RenderPass;drawMultipleIndexed(Ljava/util/Collection;Lcom/mojang/blaze3d/buffers/GpuBuffer;Lcom/mojang/blaze3d/vertex/VertexFormat$IndexType;Ljava/util/Collection;Ljava/lang/Object;)V"))
 	private void quillcore$splitDraw(RenderPass pass, Collection<RenderPass.Draw<GpuBufferSlice[]>> draws, GpuBuffer indexBuffer,
-			VertexFormat.IndexType indexType, Collection<String> dynamicUniforms, Object uniformArgs) {
+			VertexFormat.IndexType indexType, Collection<String> dynamicUniforms, Object uniformArgs, Operation<Void> original) {
 		List<RenderPass.Draw<GpuBufferSlice[]>> compact = null;
 		List<RenderPass.Draw<GpuBufferSlice[]>> vanilla = null;
 		for (RenderPass.Draw<GpuBufferSlice[]> d : draws) {
@@ -45,17 +46,16 @@ public abstract class ChunkSectionsSplitDrawMixin {
 			}
 		}
 		if (compact == null) {
-			quillcore$draw(pass, draws, indexBuffer, indexType, dynamicUniforms, uniformArgs);
+			quillcore$draw(original, pass, draws, indexBuffer, indexType, dynamicUniforms, uniformArgs);
 			return;
 		}
-		if (!vanilla.isEmpty()) quillcore$draw(pass, vanilla, indexBuffer, indexType, dynamicUniforms, uniformArgs);
+		if (!vanilla.isEmpty()) quillcore$draw(original, pass, vanilla, indexBuffer, indexType, dynamicUniforms, uniformArgs);
 		pass.setPipeline(QuillTerrainPipeline.SOLID);
-		quillcore$draw(pass, RegionDraws.merge(compact), indexBuffer, indexType, dynamicUniforms, uniformArgs);
+		quillcore$draw(original, pass, RegionDraws.merge(compact), indexBuffer, indexType, dynamicUniforms, uniformArgs);
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	private static void quillcore$draw(RenderPass pass, Collection<RenderPass.Draw<GpuBufferSlice[]>> draws, GpuBuffer indexBuffer,
+	private static void quillcore$draw(Operation<Void> original, RenderPass pass, Collection<RenderPass.Draw<GpuBufferSlice[]>> draws, GpuBuffer indexBuffer,
 			VertexFormat.IndexType indexType, Collection<String> dynamicUniforms, Object uniformArgs) {
-		pass.drawMultipleIndexed((Collection) draws, indexBuffer, indexType, dynamicUniforms, uniformArgs);
+		original.call(pass, draws, indexBuffer, indexType, dynamicUniforms, uniformArgs);
 	}
 }
