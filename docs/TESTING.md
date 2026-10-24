@@ -7,6 +7,8 @@
 
 Gradle needs JDK 25 (Loom 1.18). Reports go to `build/quill-test-report/`.
 
+Each run first moves the previous report to `build/quill-test-reports/<yyyyMMdd-HHmmss>-<commit>/`.
+
 | Layer | Checks | Output |
 |---|---|---|
 | JUnit (`src/test`) | Config clamping and migration, throttle math, bench metrics and report | `build/test-results/test` |

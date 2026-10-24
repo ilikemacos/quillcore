@@ -127,11 +127,28 @@ test {
 }
 
 def quillReportDir = layout.buildDirectory.dir("quill-test-report")
+def quillReportArchiveDir = layout.buildDirectory.dir("quill-test-reports")
+// Move the last report aside before a new run writes over it.
+tasks.register('archiveQuillReport') {
+	group = 'verification'
+	doLast {
+		def cur = quillReportDir.get().asFile
+		def html = new File(cur, 'index.html')
+		if (!html.isFile()) return
+		def m = html.getText('UTF-8') =~ /"commit":"([0-9a-fA-F]{4,40})"/
+		def name = new Date(html.lastModified()).format('yyyyMMdd-HHmmss') + '-' + (m ? m[0][1] : 'prev')
+		def dest = new File(quillReportArchiveDir.get().asFile, name)
+		dest.parentFile.mkdirs()
+		if (!cur.renameTo(dest)) throw new GradleException("Could not move ${cur} to ${dest}")
+		println "Archived previous quill-test-report to ${dest}"
+	}
+}
 afterEvaluate {
 	['runGametestOn', 'runGametestOff', 'runQuillBench'].each { n ->
 		tasks.named(n) {
 			group = 'verification'
 			ignoreExitValue = true
+			dependsOn 'archiveQuillReport'
 			doFirst { quillReportDir.get().asFile.mkdirs() }
 		}
 	}
@@ -178,7 +195,7 @@ static String tryExec(List<String> cmd, File dir) {
 tasks.register('quillTest') {
 	group = 'verification'
 	description = 'QuillCore test engine: JUnit + GameTest (Logic on/off) [+ client bench with -PwithBench]; writes build/quill-test-report/ (index.html dashboard, summary.md)'
-	dependsOn 'test', 'runGametestOn', 'runGametestOff'
+	dependsOn 'archiveQuillReport', 'test', 'runGametestOn', 'runGametestOff'
 	if (project.hasProperty('withBench')) dependsOn 'runQuillBench'
 	def junitDir = layout.buildDirectory.dir("test-results/test")
 	def withBench = project.hasProperty('withBench')
