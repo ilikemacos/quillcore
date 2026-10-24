@@ -17,6 +17,7 @@ public final class QuillMixinPlugin implements IMixinConfigPlugin {
 	private static final String PKG = "com.chopstickshq.quillcore.logic.mixin.";
 	private static final String MEMORY_PKG = "com.chopstickshq.quillcore.memory.mixin.";
 	private static final Set<String> OVERLAPS_LITHIUM = Set.of(
+			"PoiManagerRangeLoopsMixin",
 			"EntityCollideSkipMixin",
 			"EntitySectionCollidersMixin",
 			"LivingEntityPushWalkMixin",

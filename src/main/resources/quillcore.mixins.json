@@ -19,6 +19,8 @@
 		"CampfireIdleMixin",
 		"SectionStorageColumnsMixin",
 		"PoiManagerColumnsMixin",
+		"PoiManagerRangeLoopsMixin",
+		"PoiSectionAccessor",
 		"EntitySectionCollidersMixin",
 		"LevelEntityGetterAdapterAccessor",
 		"BlockBehaviourAccessor",
