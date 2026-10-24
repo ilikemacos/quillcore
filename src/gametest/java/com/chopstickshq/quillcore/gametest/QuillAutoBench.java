@@ -175,6 +175,9 @@ public final class QuillAutoBench implements ClientModInitializer {
 			QuillCore.LOGGER.info("[quill-bench] region slabs: {}, solid draws {} -> {} gl calls ({} multi ranges)",
 					com.chopstickshq.quillcore.render.region.RegionSlabs.count(), com.chopstickshq.quillcore.render.region.RegionDraws.lastIn(),
 					com.chopstickshq.quillcore.render.region.RegionDraws.lastOut(), com.chopstickshq.quillcore.render.region.RegionDraws.lastRanges());
+			QuillCore.LOGGER.info("[quill-bench] translucent resorts: {} scheduled, {} held back; face groups culled last frame: {}",
+					com.chopstickshq.quillcore.render.sort.ResortGate.scheduledCount(), com.chopstickshq.quillcore.render.sort.ResortGate.skippedCount(),
+					com.chopstickshq.quillcore.render.prep.ChunkPrep.lastCulled());
 		}
 		pendingShots++;
 		Screenshot.takeScreenshot(mc.getMainRenderTarget(), img -> {

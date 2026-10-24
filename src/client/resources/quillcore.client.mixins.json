@@ -15,6 +15,7 @@
 		"ChunkSectionsSplitDrawMixin",
 		"GlCommandEncoderMultiDrawMixin",
 		"LevelRendererPrepMixin",
+		"LevelRendererResortMixin",
 		"SectionBuffersDrawCacheMixin",
 		"SectionBuffersSlabMixin",
 		"CompiledSectionMeshSlabMixin",
