@@ -26,11 +26,13 @@ svg text{fill:var(--mute);font-size:11px}.legend span{display:inline-flex;align-
 </head>
 <body><button id="fs" title="Toggle fullscreen (F / Esc)">⛶ Fullscreen</button><main id="app"></main>
 <script>
-const D = /*__QUILL_DATA__*/null;
+const EMBED = /*__QUILL_DATA__*/null;
 const $ = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstChild; };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const f = (x, d = 1) => x == null ? '—' : Number(x).toFixed(d);
+function render(D) {
 const app = document.getElementById('app');
+app.innerHTML = '';
 const m = D.meta || {};
 app.append($(`<header><h1>QuillCore test dashboard</h1><div class="sub">${esc(m.generated)} · commit <code>${esc(m.commit)}</code> · ${D.overall === 'pass' ? '<span class="pill pass">ALL GREEN</span>' : D.overall === 'fail' ? '<span class="pill fail">FAILURES</span>' : '<span class="pill na">PARTIAL</span>'}</div></header>`));
 
@@ -105,6 +107,8 @@ app.append($('<h2>Run metadata</h2>'));
 const rows = Object.entries(m).filter(([k]) => k !== 'generated').map(([k, v]) => `<tr><td class="sub">${esc(k)}</td><td><code>${esc(v)}</code></td></tr>`).join('');
 app.append($(`<div class="card"><table>${rows}</table></div>`));
 app.append($('<p class="sub" style="margin-top:20px">Only measured data is shown. Layers that did not run are marked “not run”. Follows your OS light/dark setting (prefers-color-scheme).</p>'));
+}
+if (EMBED) render(EMBED); else if (window.quillLoad) window.quillLoad(render);
 const fsBtn = document.getElementById('fs');
 const toggleFs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { fsBtn.textContent = 'Press F11 for fullscreen'; });
 fsBtn.onclick = toggleFs;

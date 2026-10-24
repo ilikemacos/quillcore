@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark">
+<title>QuillCore runs</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#14171c;--mute:#5d6673;--line:#e2e5ea;--ok:#1a7f4b;--bad:#c62f2f;--na:#8a93a0;--on:#2f6fdf;--off:#e07b16;--a:#2f6fdf;--b:#a142f4}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#181c22;--fg:#e8ebef;--mute:#98a2ae;--line:#2a3039;--ok:#3fbf7f;--bad:#ff6b6b;--na:#6b7480;--on:#6ea0ff;--off:#ffa24a;--a:#6ea0ff;--b:#c58bff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{width:100%;min-height:100vh;padding:clamp(14px,2vw,32px) clamp(14px,2.5vw,40px) 40px}h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:28px 0 10px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+a{color:var(--on)}.sub{color:var(--mute)}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))}
+table{width:100%;border-collapse:collapse}td,th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mute);font-weight:500;font-size:12px}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;color:#fff}.pass{background:var(--ok)}.fail{background:var(--bad)}.partial{background:var(--na)}
+code{font:12px ui-monospace,Consolas,monospace}button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}button:disabled{opacity:.5}
+#fs{position:fixed;top:14px;right:16px;z-index:5}svg{display:block;height:auto}svg text{fill:var(--mute);font-size:11px}
+.legend span{display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:12px}.legend b{width:14px;height:3px;border-radius:2px;display:inline-block}
+.up{color:var(--ok)}.down{color:var(--bad)}.empty{color:var(--mute);padding:26px;text-align:center;border:1px dashed var(--line);border-radius:10px}
+</style></head>
+<body><button id="fs">⛶ Fullscreen</button><main id="app"><p class="sub">Loading…</p></main>
+<script>
+const app = document.getElementById('app');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const f = (x, d = 1) => x == null ? '—' : Number(x).toFixed(d);
+const pill = o => `<span class="pill ${o === 'pass' ? 'pass' : o === 'fail' ? 'fail' : 'partial'}">${o === 'pass' ? 'PASS' : o === 'fail' ? 'FAIL' : 'PARTIAL'}</span>`;
+const q = new URLSearchParams(location.search);
+
+async function history() {
+  const { runs } = await fetch('/api/runs').then(r => r.json());
+  app.innerHTML = `<h1>QuillCore test runs</h1><div class="sub">Pushed from the G14 by <code>gradlew quillTest</code>. Tick two runs to compare.</div>
+  <h2>History</h2>` + (runs.length ? `<div class="card"><table><tr><th></th><th>Run</th><th>Result</th><th>Commit</th><th>Tests (passed/total)</th><th>Avg FPS on / off</th><th>1% low on / off</th><th>MSPT on / off</th><th>GPU · resolution</th></tr>
+  ${runs.map(r => { const t = r.layers.filter(l => l.status !== 'not run' && !/bench/i.test(l.name)); const P = t.reduce((a, l) => a + l.passed, 0), T = t.reduce((a, l) => a + l.tests, 0);
+    return `<tr><td><input type="checkbox" value="${esc(r.id)}"></td><td><a href="/run?id=${esc(r.id)}">${esc(r.generated || r.id)}</a></td><td>${pill(r.overall)}</td><td><code>${esc(r.commit)}</code></td><td>${P}/${T}</td>
+    <td>${f(r.avgFps?.on)} / ${f(r.avgFps?.off)}</td><td>${f(r.pct1LowFps?.on)} / ${f(r.pct1LowFps?.off)}</td><td>${f(r.msptAvg?.on, 2)} / ${f(r.msptAvg?.off, 2)}</td><td class="sub">${esc(r.gpu)} · ${esc(r.resolution)}</td></tr>`; }).join('')}
+  </table><p><button id="cmp" disabled>Compare selected</button></p></div>` : '<div class="empty">No runs yet. Run <code>gradlew quillTest -PwithBench</code> on the G14.</div>');
+  const boxes = [...app.querySelectorAll('input[type=checkbox]')], btn = document.getElementById('cmp');
+  boxes.forEach(b => b.onchange = () => { const s = boxes.filter(x => x.checked); btn.disabled = s.length !== 2; });
+  if (btn) btn.onclick = () => { const [a, b] = boxes.filter(x => x.checked).map(x => x.value); location.search = `?a=${a}&b=${b}`; };
+}
+
+function chart(title, series, unit) {
+  const W = 560, H = 230, P = {l: 44, r: 10, t: 12, b: 26}, all = series.flatMap(s => s.pts);
+  if (!all.length) return `<div class="card"><div class="sub">${title}</div><div class="empty">No samples.</div></div>`;
+  const mx = Math.max(...series.map(s => s.pts.length - 1), 1), hi = Math.max(...all) * 1.08 || 1;
+  const X = i => P.l + i / mx * (W - P.l - P.r), Y = v => H - P.b - v / hi * (H - P.t - P.b);
+  let g = ''; for (let k = 0; k <= 4; k++) { const v = hi * k / 4; g += `<line x1="${P.l}" x2="${W - P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${P.l - 6}" y="${Y(v) + 4}" text-anchor="end">${v.toFixed(0)}</text>`; }
+  return `<div class="card"><div class="sub">${title}</div><svg viewBox="0 0 ${W} ${H}" width="100%">${g}${series.map(s => `<polyline fill="none" stroke="${s.c}" stroke-width="1.6" stroke-dasharray="${s.d || ''}" points="${s.pts.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}"/>`).join('')}<text x="${W - P.r}" y="${H - 6}" text-anchor="end">${unit}</text></svg>
+  <div class="legend">${series.map(s => `<span><b style="background:${s.c}"></b>${esc(s.n)}</span>`).join('')}</div></div>`;
+}
+
+async function compare(a, b) {
+  const [A, B] = await Promise.all([a, b].map(id => fetch('/api/runs?id=' + encodeURIComponent(id)).then(r => r.ok ? r.json() : null)));
+  if (!A || !B) { app.innerHTML = '<p>Run not found. <a href="/">All runs</a></p>'; return; }
+  const metric = (D, k, side) => D.bench?.summary?.[k]?.[side];
+  const rows = [['Avg FPS', 'avgFps', 1, 1], ['1% low FPS', 'pct1LowFps', 1, 1], ['Frame p50 ms', 'frameTimeP50Ms', 2, -1], ['Frame p99 ms', 'frameTimeP99Ms', 2, -1], ['MSPT avg', 'msptAvg', 2, -1]];
+  const delta = (x, y, better) => x == null || y == null || !y ? '—' : (() => { const p = (x - y) / y * 100; return `<span class="${p * better >= 0 ? 'up' : 'down'}">${p > 0 ? '+' : ''}${p.toFixed(1)}%</span>`; })();
+  const tests = D => D.layers.map(l => l.status === 'not run' ? `${esc(l.name)}: not run` : `${esc(l.name)}: ${l.passed}/${l.tests}`).join('<br>');
+  const seg = (D, label) => (D.bench?.segments || []).find(s => s.label === label)?.fpsPerSecond || [];
+  app.innerHTML = `<p><a href="/">← All runs</a></p><h1>Compare runs</h1>
+  <div class="sub"><b style="color:var(--a)">A</b> <a href="/run?id=${esc(a)}">${esc(A.meta.generated)}</a> <code>${esc(A.meta.commit)}</code> ${pill(A.overall)} &nbsp; vs &nbsp; <b style="color:var(--b)">B</b> <a href="/run?id=${esc(b)}">${esc(B.meta.generated)}</a> <code>${esc(B.meta.commit)}</code> ${pill(B.overall)}</div>
+  <h2>Benchmark</h2><div class="card"><table><tr><th>Metric</th><th>A on</th><th>B on</th><th>B vs A (on)</th><th>A off</th><th>B off</th><th>B vs A (off)</th></tr>
+  ${rows.map(([n, k, d, bt]) => `<tr><td>${n}</td><td>${f(metric(A, k, 'on'), d)}</td><td>${f(metric(B, k, 'on'), d)}</td><td>${delta(metric(B, k, 'on'), metric(A, k, 'on'), bt)}</td><td>${f(metric(A, k, 'off'), d)}</td><td>${f(metric(B, k, 'off'), d)}</td><td>${delta(metric(B, k, 'off'), metric(A, k, 'off'), bt)}</td></tr>`).join('')}</table></div>
+  <h2>FPS over time (first segment of each mode)</h2><div class="grid">
+  ${chart('QuillCore ON', [{n: 'A on', c: 'var(--a)', pts: seg(A, 'on')}, {n: 'B on', c: 'var(--b)', pts: seg(B, 'on')}], 'seconds')}
+  ${chart('QuillCore OFF', [{n: 'A off', c: 'var(--a)', d: '5 3', pts: seg(A, 'off')}, {n: 'B off', c: 'var(--b)', d: '5 3', pts: seg(B, 'off')}], 'seconds')}</div>
+  <h2>Tests</h2><div class="grid"><div class="card"><b style="color:var(--a)">A</b><br>${tests(A)}</div><div class="card"><b style="color:var(--b)">B</b><br>${tests(B)}</div></div>
+  <h2>Environment</h2><div class="card"><table><tr><th></th><th>A</th><th>B</th></tr>${['GPU', 'Bench resolution', 'GPU driver', 'Minecraft', 'Fabric Loader', 'QuillCore', 'Bench settings'].map(k => `<tr><td class="sub">${k}</td><td><code>${esc(A.meta[k])}</code></td><td><code>${esc(B.meta[k])}</code></td></tr>`).join('')}</table></div>`;
+}
+
+(q.get('a') && q.get('b') ? compare(q.get('a'), q.get('b')) : history()).catch(e => app.innerHTML = `<p>Failed to load: ${esc(e)}</p>`);
+const fsBtn = document.getElementById('fs');
+const toggleFs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => fsBtn.textContent = 'Press F11');
+fsBtn.onclick = toggleFs;
+document.addEventListener('keydown', e => { if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && e.target.tagName !== 'INPUT') toggleFs(); });
+document.addEventListener('fullscreenchange', () => fsBtn.textContent = document.fullscreenElement ? '✕ Exit fullscreen (Esc)' : '⛶ Fullscreen');
+</script></body></html>
