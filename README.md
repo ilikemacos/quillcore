@@ -51,6 +51,12 @@ export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64   # or any JDK 25+
 
 Jar output: `build/libs/quillcore-0.4.0.jar`
 
+## Settings screen
+
+Options → Video Settings opens the QuillCore video settings screen (also via ModMenu). It covers the vanilla
+video options plus QuillCore render cutoffs, caps, logic throttles and FSR 1. Changes are staged until
+**Apply**/**Done**; **Undo** reverts pending edits. The original vanilla screen is under **Advanced**.
+
 ## Commands (permission level 2)
 
 | Command | Effect |
