@@ -1,5 +1,7 @@
 package com.chopstickshq.quillcore.logic.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.chopstickshq.quillcore.common.QuillConfig;
 import com.chopstickshq.quillcore.logic.IdleAiThrottle;
 import com.chopstickshq.quillcore.logic.IdleAiThrottleState;
@@ -12,7 +14,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -69,23 +70,23 @@ public abstract class MobServerAiThrottleMixin {
 		quillcore$skipSelectors = false;
 	}
 
-	@Redirect(
+	@WrapOperation(
 			method = "serverAiStep",
 			at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/ai/goal/GoalSelector;tick()V")
 	)
-	private void quillcore$maybeSkipTick(GoalSelector selector) {
+	private void quillcore$maybeSkipTick(GoalSelector selector, Operation<Void> original) {
 		if (!quillcore$skipSelectors) {
-			selector.tick();
+			original.call(selector);
 		}
 	}
 
-	@Redirect(
+	@WrapOperation(
 			method = "serverAiStep",
 			at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/ai/goal/GoalSelector;tickRunningGoals(Z)V")
 	)
-	private void quillcore$maybeSkipRunning(GoalSelector selector, boolean tickAllRunning) {
+	private void quillcore$maybeSkipRunning(GoalSelector selector, boolean tickAllRunning, Operation<Void> original) {
 		if (!quillcore$skipSelectors) {
-			selector.tickRunningGoals(tickAllRunning);
+			original.call(selector, tickAllRunning);
 		}
 	}
 }

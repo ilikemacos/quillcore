@@ -48,6 +48,10 @@ public class QuillMemoryGameTests {
 
 	@GameTest
 	public void vanillaNeighbourMapIsGone(GameTestHelper h) throws ReflectiveOperationException {
+		if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("ferritecore")) {
+			h.succeed(); // our memory mixins step aside for FerriteCore
+			return;
+		}
 		java.lang.reflect.Field f = net.minecraft.world.level.block.state.StateHolder.class.getDeclaredField("neighbours");
 		f.setAccessible(true);
 		if (f.get(net.minecraft.world.level.block.Blocks.REDSTONE_WIRE.defaultBlockState()) != null) {
@@ -77,6 +81,10 @@ public class QuillMemoryGameTests {
 	/** Shared collision shapes must cover exactly what the block computes fresh, for every state. */
 	@GameTest
 	public void sharedShapesMatchFreshOnes(GameTestHelper h) throws ReflectiveOperationException {
+		if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("ferritecore")) {
+			h.succeed(); // our memory mixins step aside for FerriteCore
+			return;
+		}
 		// protected in vanilla; dev runtime keeps mojang names
 		java.lang.reflect.Method compute = net.minecraft.world.level.block.state.BlockBehaviour.class.getDeclaredMethod("getCollisionShape",
 				BlockState.class, net.minecraft.world.level.BlockGetter.class, net.minecraft.core.BlockPos.class, net.minecraft.world.phys.shapes.CollisionContext.class);

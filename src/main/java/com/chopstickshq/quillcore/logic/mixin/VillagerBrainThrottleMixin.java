@@ -1,5 +1,7 @@
 package com.chopstickshq.quillcore.logic.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.chopstickshq.quillcore.common.QuillConfig;
 import com.chopstickshq.quillcore.logic.BrainIdleThrottle;
 import com.chopstickshq.quillcore.logic.BrainIdleThrottleState;
@@ -13,7 +15,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -69,16 +70,16 @@ public abstract class VillagerBrainThrottleMixin {
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	@Redirect(
+	@WrapOperation(
 			method = "customServerAiStep",
 			at = @At(
 					value = "INVOKE",
 					target = "Lnet/minecraft/world/entity/ai/Brain;tick(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;)V"
 			)
 	)
-	private void quillcore$maybeSkipBrainTick(Brain brain, ServerLevel level, LivingEntity entity) {
+	private void quillcore$maybeSkipBrainTick(Brain brain, ServerLevel level, LivingEntity entity, Operation<Void> original) {
 		if (!quillcore$skipBrain) {
-			brain.tick(level, entity);
+			original.call(brain, level, entity);
 		}
 	}
 }

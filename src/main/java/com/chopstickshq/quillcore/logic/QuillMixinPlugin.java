@@ -9,11 +9,13 @@ import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 /**
- * Turns off the logic mixins that hook the same calls as Lithium when Lithium is installed. Two exclusive hooks on one
- * call crash the game on launch; Lithium already speeds those paths up, so stepping aside loses nothing.
+ * Turns off our mixins that hook the same code as Lithium or FerriteCore when those are installed. Two exclusive hooks
+ * on one call crash the game, and the other mod already speeds that path up, so stepping aside loses nothing.
+ * Used by both quillcore.mixins.json and quillcore.memory.mixins.json.
  */
 public final class QuillMixinPlugin implements IMixinConfigPlugin {
 	private static final String PKG = "com.chopstickshq.quillcore.logic.mixin.";
+	private static final String MEMORY_PKG = "com.chopstickshq.quillcore.memory.mixin.";
 	private static final Set<String> OVERLAPS_LITHIUM = Set.of(
 			"EntityCollideSkipMixin",
 			"EntitySectionCollidersMixin",
@@ -25,14 +27,18 @@ public final class QuillMixinPlugin implements IMixinConfigPlugin {
 			"BrainFlatBehaviorsMixin");
 
 	private boolean lithium;
+	private boolean ferritecore;
 
 	@Override
 	public void onLoad(String mixinPackage) {
 		lithium = FabricLoader.getInstance().isModLoaded("lithium");
+		ferritecore = FabricLoader.getInstance().isModLoaded("ferritecore");
 	}
 
 	@Override
 	public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+		// Our whole memory package (shared state tables, shape caches) does what FerriteCore does.
+		if (mixinClassName.startsWith(MEMORY_PKG)) return !ferritecore;
 		if (!lithium || !mixinClassName.startsWith(PKG)) return true;
 		return !OVERLAPS_LITHIUM.contains(mixinClassName.substring(PKG.length()));
 	}
