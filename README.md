@@ -34,6 +34,10 @@ Defaults are conservative. `masterEnabled`, `renderEnabled` and `logicEnabled` t
 
 Settings live in `config/quillcore.json`.
 
+## Settings screen
+
+Options → Video Settings opens the QuillCore settings screen. ModMenu opens it too. It has the vanilla video options plus the QuillCore cutoffs, caps, throttles and FSR1. Changes wait until you press Apply or Done, and Undo drops them. The vanilla screen is still under Advanced.
+
 ## Commands
 
 Permission level 2.

@@ -15,7 +15,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Cloth Config screen. Only loaded when Cloth Config is present (ModMenu entrypoint).
+ * Cloth Config screen with every option. Only loaded when Cloth Config is present, opened from
+ * the Advanced tab of {@code QuillVideoSettingsScreen}.
  * Every control maps to a real QuillConfig field / code path.
  */
 public final class QuillCoreConfigScreen {

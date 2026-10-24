@@ -3,6 +3,7 @@
 ## Unreleased
 
 - QuillCore no longer loads next to Sodium
+- New video settings screen that replaces vanilla Video Settings
 
 ## 0.4.0 (2026-10-22)
 
