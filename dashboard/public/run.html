@@ -41,7 +41,9 @@ window.quillLoad = (render) => {
 const EMBED = /*__QUILL_DATA__*/null;
 const $ = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstChild; };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const f = (x, d = 1) => x == null ? '—' : Number(x).toFixed(d);
+const num = (x) => x == null || x === '' || !isFinite(x) ? null : Number(x);
+const f = (x, d = 1) => num(x) == null ? 'n/a' : num(x).toFixed(d);
+const ratio = (lo, avg) => num(lo) == null || !num(avg) ? 'n/a' : (num(lo) / num(avg) * 100).toFixed(0) + '%';
 function render(D) {
 const app = document.getElementById('app');
 app.innerHTML = '';
@@ -86,12 +88,32 @@ function lineChart(title, unit, series) {
 }
 function barChart(title, rows) {
   const W = 560, rowH = 46, H = rows.length * rowH + 10, L = 120;
+  rows = rows.map(r => ({...r, on: num(r.on), off: num(r.off)}));
   const max = Math.max(...rows.flatMap(r => [r.on, r.off].filter(x => x != null)), 1);
   const bw = v => v == null ? 0 : v / max * (W - L - 70);
   const body = rows.map((r, i) => { const y = i * rowH + 6; return `<text x="0" y="${y + 18}">${esc(r.name)}</text>
     <rect x="${L}" y="${y}" height="15" rx="3" width="${bw(r.on)}" fill="var(--on)"/><text x="${L + bw(r.on) + 6}" y="${y + 12}">${r.on == null ? 'n/a' : f(r.on, r.d)}</text>
     <rect x="${L}" y="${y + 19}" height="15" rx="3" width="${bw(r.off)}" fill="var(--off)"/><text x="${L + bw(r.off) + 6}" y="${y + 31}">${r.off == null ? 'n/a' : f(r.off, r.d)}</text>`; }).join('');
   return `<div class="card"><div class="k">${title}</div><svg viewBox="0 0 ${W} ${H}" width="100%">${body}</svg><div class="legend"><span><b style="background:var(--on)"></b>QuillCore ON</span><span><b style="background:var(--off)"></b>OFF</span></div></div>`;
+}
+// grouped bars: one group per mode (ON / OFF), one bar per FPS metric; mode colour, metric by opacity
+function groupedChart(title, groups, metrics) {
+  const W = 560, H = 240, P = {l: 44, r: 10, t: 22, b: 40}, gap = 36;
+  const vals = groups.flatMap(g => metrics.map(m => num(g.v[m.k]))).filter(v => v != null);
+  if (!vals.length) return `<div class="card"><div class="k">${title}</div><div class="empty">No FPS summary.</div></div>`;
+  const hi = Math.max(...vals) * 1.12 || 1, ih = H - P.t - P.b, Y = v => H - P.b - v / hi * ih;
+  const gw = (W - P.l - P.r - gap * (groups.length - 1)) / groups.length, bw = Math.min(64, (gw - 12) / metrics.length);
+  let g = '';
+  for (let k = 0; k <= 4; k++) { const v = hi * k / 4; g += `<line x1="${P.l}" x2="${W - P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${P.l - 6}" y="${Y(v) + 4}" text-anchor="end">${v.toFixed(0)}</text>`; }
+  const body = groups.map((G, gi) => {
+    const x0 = P.l + gi * (gw + gap) + (gw - bw * metrics.length - 6 * (metrics.length - 1)) / 2;
+    const bars = metrics.map((m, mi) => { const v = num(G.v[m.k]), x = x0 + mi * (bw + 6), cx = x + bw / 2;
+      return v == null ? `<text x="${cx}" y="${H - P.b - 6}" text-anchor="middle">n/a</text><text x="${cx}" y="${H - P.b + 14}" text-anchor="middle">${m.short}</text>`
+        : `<rect x="${x}" y="${Y(v)}" width="${bw}" height="${H - P.b - Y(v)}" rx="3" fill="${G.color}" fill-opacity="${m.op}"/><text x="${cx}" y="${Y(v) - 5}" text-anchor="middle">${v.toFixed(1)}</text><text x="${cx}" y="${H - P.b + 14}" text-anchor="middle">${m.short}</text>`; }).join('');
+    return bars + `<text x="${P.l + gi * (gw + gap) + gw / 2}" y="${H - 8}" text-anchor="middle" style="fill:${G.color};font-weight:600">${esc(G.name)}${num(G.v[metrics[1].k]) != null && num(G.v[metrics[0].k]) ? ' · 1% low = ' + ratio(G.v[metrics[1].k], G.v[metrics[0].k]) + ' of avg' : ''}</text>`;
+  }).join('');
+  const legend = metrics.map(m => `<span><b style="background:var(--fg);opacity:${m.op}"></b>${esc(m.name)}</span>`).join('');
+  return `<div class="card"><div class="k">${title}</div><svg viewBox="0 0 ${W} ${H}" width="100%">${g}${body}</svg><div class="legend">${legend}</div></div>`;
 }
 app.append($('<h2>Client benchmark — QuillCore ON vs OFF</h2>'));
 const B = D.bench;
@@ -100,20 +122,25 @@ if (!B || !B.segments || !B.segments.length) {
 } else {
   const segs = B.segments, S = B.summary || {};
   if (B.valid === false) app.append($(`<div class="card" style="border-color:#b7791f;margin-bottom:14px"><b style="color:#b7791f">INVALID benchmark — shown for diagnosis only, do not compare these numbers:</b><ul>${B.invalidReasons.map(r => `<li>${esc(r)}</li>`).join('')}</ul></div>`));
-  const col = (s, k) => ({name: `${s.label.toUpperCase()} #${s.segment + 1}`, color: s.label === 'on' ? 'var(--on)' : 'var(--off)', dash: k % 2 ? '' : '', pts: s[k] || []});
+  const col = (s, k) => ({name: `${s.label.toUpperCase()} #${s.segment + 1}`, color: s.label === 'on' ? 'var(--on)' : 'var(--off)', dash: k % 2 ? '' : '', pts: (s[k] || []).map(num).filter(v => v != null)});
   const byLabel = (k) => segs.map((s, i) => ({...col(s, k), dash: segs.slice(0, i).filter(x => x.label === s.label).length ? '5 3' : ''}));
   const charts = $('<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))"></div>');
   charts.append($(lineChart('FPS over time (per second)', 'seconds', byLabel('fpsPerSecond'))));
   charts.append($(lineChart('Frame time (ms, bucket max — spikes kept)', 'samples', byLabel('frameTimeMsSeries'))));
-  charts.append($(barChart('FPS — mean of segments', [
-    {name: 'Avg FPS', on: S.avgFps?.on, off: S.avgFps?.off, d: 1}, {name: '1% low FPS', on: S.pct1LowFps?.on, off: S.pct1LowFps?.off, d: 1}])));
+  const has01 = segs.some(s => num(s.pct01LowFps) != null) || num(S.pct01LowFps?.on) != null || num(S.pct01LowFps?.off) != null;
+  const fpsM = [{k: 'avgFps', name: 'Avg FPS', short: 'avg', op: 1}, {k: 'pct1LowFps', name: '1% low', short: '1% low', op: .6}].concat(has01 ? [{k: 'pct01LowFps', name: '0.1% low', short: '0.1% low', op: .32}] : []);
+  const side = (lab) => Object.fromEntries(fpsM.map(m => [m.k, S[m.k]?.[lab]]));
+  charts.append($(groupedChart('Avg FPS vs 1% low' + (has01 ? ' / 0.1% low' : '') + ' — mean of segments', [{name: 'QuillCore ON', color: 'var(--on)', v: side('on')}, {name: 'OFF', color: 'var(--off)', v: side('off')}], fpsM)));
   charts.append($(barChart('Integrated server tick (MSPT) & frame time', [
     {name: 'MSPT avg', on: S.msptAvg?.on, off: S.msptAvg?.off, d: 2}, {name: 'Frame p50 ms', on: S.frameTimeP50Ms?.on, off: S.frameTimeP50Ms?.off, d: 2}, {name: 'Frame p99 ms', on: S.frameTimeP99Ms?.on, off: S.frameTimeP99Ms?.off, d: 2}])));
   app.append(charts);
-  const pct = (k) => S[k]?.onVsOffPct == null ? '—' : (S[k].onVsOffPct > 0 ? '+' : '') + f(S[k].onVsOffPct) + '%';
-  app.append($(`<div class="card" style="margin-top:14px"><table><tr><th>Segment</th><th>Avg FPS</th><th>1% low</th><th>p50 ms</th><th>p99 ms</th><th>MSPT</th></tr>
-    ${segs.map(s => `<tr><td>${s.label.toUpperCase()} #${s.segment + 1}</td><td>${f(s.avgFps)}</td><td>${f(s.pct1LowFps)}</td><td>${f(s.frameTimeP50Ms, 2)}</td><td>${f(s.frameTimeP99Ms, 2)}</td><td>${f(s.msptAvg, 2)}</td></tr>`).join('')}
-    <tr><th>ON vs OFF</th><th>${pct('avgFps')}</th><th>${pct('pct1LowFps')}</th><th>${pct('frameTimeP50Ms')}</th><th>${pct('frameTimeP99Ms')}</th><th>${pct('msptAvg')}</th></tr></table></div>`));
+  const pct = (k) => num(S[k]?.onVsOffPct) == null ? 'n/a' : (S[k].onVsOffPct > 0 ? '+' : '') + f(S[k].onVsOffPct) + '%';
+  const c01 = (v) => has01 ? `<td>${f(v)}</td>` : '';
+  const meanRow = (lab, name) => `<tr><th>${name} mean</th><th>${f(S.avgFps?.[lab])}</th><th>${f(S.pct1LowFps?.[lab])}</th>${has01 ? `<th>${f(S.pct01LowFps?.[lab])}</th>` : ''}<th>${ratio(S.pct1LowFps?.[lab], S.avgFps?.[lab])}</th><th>${f(S.frameTimeP50Ms?.[lab], 2)}</th><th>${f(S.frameTimeP99Ms?.[lab], 2)}</th><th>${f(S.msptAvg?.[lab], 2)}</th></tr>`;
+  app.append($(`<div class="card" style="margin-top:14px"><table><tr><th>Segment</th><th>Avg FPS</th><th>1% low</th>${has01 ? '<th>0.1% low</th>' : ''}<th>1% low / avg</th><th>p50 ms</th><th>p99 ms</th><th>MSPT</th></tr>
+    ${segs.map(s => `<tr><td>${esc(String(s.label).toUpperCase())} #${s.segment + 1}</td><td>${f(s.avgFps)}</td><td>${f(s.pct1LowFps)}</td>${c01(s.pct01LowFps)}<td>${ratio(s.pct1LowFps, s.avgFps)}</td><td>${f(s.frameTimeP50Ms, 2)}</td><td>${f(s.frameTimeP99Ms, 2)}</td><td>${f(s.msptAvg, 2)}</td></tr>`).join('')}
+    ${meanRow('on', 'ON')}${meanRow('off', 'OFF')}
+    <tr><th>ON vs OFF</th><th>${pct('avgFps')}</th><th>${pct('pct1LowFps')}</th>${has01 ? `<th>${pct('pct01LowFps')}</th>` : ''}<th></th><th>${pct('frameTimeP50Ms')}</th><th>${pct('frameTimeP99Ms')}</th><th>${pct('msptAvg')}</th></tr></table></div>`));
 }
 
 // ---- metadata
