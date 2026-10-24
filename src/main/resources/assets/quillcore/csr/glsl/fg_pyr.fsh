@@ -1,5 +1,5 @@
 #version 330 core
-// Luma pyramid for the simplified flow stage. r = prev luma, g = curr luma, b = |curr - prev|.
+// Box-filtered luma for PackA (1/4) and the scene-cut mean (1/16 + mips). r = prev, g = curr, b = |curr - prev|.
 // Mode 0: 4x4 box average straight from the two colour frames (as CSRAIFG_PackA does).
 // Mode 1: 2x2 average of the previous pyramid level.
 uniform int uMode;

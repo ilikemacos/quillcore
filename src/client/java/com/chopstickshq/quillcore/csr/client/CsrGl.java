@@ -42,11 +42,31 @@ final class CsrGl {
 		}
 	}
 
-	/** @return null when the required GL features are present, otherwise the reason. */
+	/** GLSL 3.30 is available; otherwise sources are compiled as 1.50 + explicit_attrib_location. */
+	private static boolean glsl330 = true;
+	private static boolean timers;
+
+	/**
+	 * Minecraft asks for a 3.2 core context, so check the features the passes use rather than a
+	 * version: MRT float targets (3.0), sampler objects and explicit fragment output locations
+	 * (3.3 or their ARB extensions). Timer queries are optional.
+	 *
+	 * @return null when the required GL features are present, otherwise the reason.
+	 */
 	static String capsProblem() {
 		GLCapabilities caps = GL.getCapabilities();
-		if (caps == null || !caps.OpenGL33) {
-			return "OpenGL 3.3 is not available";
+		if (caps == null) {
+			return "no GL capabilities on this thread";
+		}
+		String version = GL11.glGetString(GL11.GL_VERSION);
+		if (!caps.OpenGL32) {
+			return "needs OpenGL 3.2, driver reports " + version;
+		}
+		if (!caps.OpenGL33 && !caps.GL_ARB_explicit_attrib_location) {
+			return "needs GL_ARB_explicit_attrib_location (" + version + ")";
+		}
+		if (!caps.OpenGL33 && !caps.GL_ARB_sampler_objects) {
+			return "needs GL_ARB_sampler_objects (" + version + ")";
 		}
 		int drawBuffers = GL11.glGetInteger(GL20.GL_MAX_DRAW_BUFFERS);
 		int attachments = GL11.glGetInteger(GL30.GL_MAX_COLOR_ATTACHMENTS);
@@ -56,7 +76,13 @@ final class CsrGl {
 		if (GL11.glGetInteger(GL20.GL_MAX_TEXTURE_IMAGE_UNITS) < UNITS) {
 			return "needs " + UNITS + " fragment texture units";
 		}
+		glsl330 = caps.OpenGL33;
+		timers = caps.OpenGL33 || caps.GL_ARB_timer_query;
 		return null;
+	}
+
+	static boolean timersAvailable() {
+		return timers;
 	}
 
 	// ---- shaders ----
@@ -70,7 +96,9 @@ final class CsrGl {
 			StringBuilder out = new StringBuilder();
 			for (String line : src.split("\n", -1)) {
 				String t = line.trim();
-				if (t.startsWith("#include ")) {
+				if (t.startsWith("#version 330") && !glsl330) {
+					out.append("#version 150 core\n#extension GL_ARB_explicit_attrib_location : require\n");
+				} else if (t.startsWith("#include ")) {
 					out.append(source(t.substring(9).trim() + ".glsl")).append('\n');
 				} else {
 					out.append(line).append('\n');

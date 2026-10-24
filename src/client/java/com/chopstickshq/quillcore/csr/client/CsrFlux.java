@@ -74,17 +74,25 @@ final class CsrFlux implements AutoCloseable {
 			int mainTex = ((GlTexture) main.getColorTexture()).glId();
 			float[] lc = weights.luma();
 
+			CsrTimers.begin("flux_luma");
 			luma.use().tex("uColor", 0, mainTex, linear).f("uLuma", lc[0], lc[1], lc[2]);
 			CsrGl.draw(lumaFbo, w, h, vao);
+			CsrTimers.end();
 
+			CsrTimers.begin("flux_net");
 			int[] feat = net.run(conv, vao, new int[] {lumaTex});
+			CsrTimers.end();
 
 			shuffle.use().tex("uColor", 0, mainTex, linear).tex("uFeat", 1, feat[0], 0)
 					.f("uLrSize", w, h).i("uLrSizeI", w, h).f("uLuma", lc[0], lc[1], lc[2]);
+			CsrTimers.begin("flux_shuffle");
 			CsrGl.draw(shuffleFbo, 2 * w, 2 * h, vao);
+			CsrTimers.end();
 
 			sharpen.use().tex("uColor", 0, shuffleTex, 0).i("uSize", 2 * w, 2 * h).f("uSharpness", SHARPNESS);
+			CsrTimers.begin("flux_sharpen");
 			CsrGl.draw(sharpFbo, 2 * w, 2 * h, vao);
+			CsrTimers.end();
 			CsrGl.check("CSR Flux passes");
 		} finally {
 			saved.restore();
@@ -118,6 +126,7 @@ final class CsrFlux implements AutoCloseable {
 		CsrGl.Saved saved = CsrGl.Saved.capture();
 		try {
 			releaseTargets();
+			CsrTimers.close();
 			net.close();
 			luma.close();
 			conv.close();

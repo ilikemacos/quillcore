@@ -1,10 +1,12 @@
 package com.chopstickshq.quillcore.csr.client;
 
 import com.chopstickshq.quillcore.csr.CsrFgWeights;
+import com.chopstickshq.quillcore.csr.CsrMotion;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 
 import java.util.concurrent.locks.LockSupport;
@@ -18,7 +20,7 @@ final class CsrFrameGen implements AutoCloseable {
 
 	private final CsrFgWeights weights;
 	private final CsrPass pyr;
-	private final CsrPass search;
+	private final CsrPass meLuma, gmGrid, gmCost, gmPick, meBlock, meP8, meProp, meP4, meP2, meOccl;
 	private final CsrPass packA;
 	private final CsrPass packB;
 	private final CsrPass compose;
@@ -37,8 +39,19 @@ final class CsrFrameGen implements AutoCloseable {
 	private int worldTex, worldFbo;
 	private boolean worldValid;
 	private int pyr4, pyr8, pyr16, pyr4Fbo, pyr8Fbo, pyr16Fbo;
-	private final int[] flow16 = new int[2], flow8 = new int[2], flow4 = new int[2];
-	private int flow16Fbo, flow8Fbo, flow4Fbo;
+	// Motion search (FgV2): per-frame luma pyramids, then per-tile vectors at (tw, th).
+	private int tw, th, bw, bh;
+	private final int[][] lum = new int[2][CsrMotion.LEVELS];
+	private final int[][] lumFbo = new int[2][CsrMotion.LEVELS];
+	private final int[] lw = new int[CsrMotion.LEVELS], lh = new int[CsrMotion.LEVELS];
+	private int lumCur;
+	private int gmGridTex, gmCostTex, gmTex, gmGridFbo, gmCostFbo, gmFbo;
+	private int blockTex, tv8, tv8s, tv4, occlTex, blockFbo, tv8Fbo, tv8sFbo, tv4Fbo, occlFbo;
+	/** [0] backward (curr -> prev), [1] forward; each ping-pongs so last frame's result seeds this one. */
+	private final int[][] mv = new int[2][2];
+	private final int[][] mvFbo = new int[2][2];
+	private int mvCur;
+	private boolean mvHistValid;
 	private final int[] packATex = new int[2];
 	private final int[] packBTex = new int[3];
 	private int packAFbo, packBFbo;
@@ -51,7 +64,16 @@ final class CsrFrameGen implements AutoCloseable {
 		CsrGl.Saved saved = CsrGl.Saved.capture();
 		try {
 			pyr = new CsrPass("fg_pyr.fsh");
-			search = new CsrPass("fg_search.fsh");
+			meLuma = new CsrPass("me_luma.fsh");
+			gmGrid = new CsrPass("gm_grid.fsh");
+			gmCost = new CsrPass("gm_cost.fsh");
+			gmPick = new CsrPass("gm_pick.fsh");
+			meBlock = new CsrPass("me_block.fsh");
+			meP8 = new CsrPass("me_p8.fsh");
+			meProp = new CsrPass("me_prop.fsh");
+			meP4 = new CsrPass("me_p4.fsh");
+			meP2 = new CsrPass("me_p2.fsh");
+			meOccl = new CsrPass("me_occl.fsh");
 			packA = new CsrPass("fg_packa.fsh");
 			packB = new CsrPass("fg_packb.fsh");
 			compose = new CsrPass("fg_compose.fsh");
@@ -97,14 +119,7 @@ final class CsrFrameGen implements AutoCloseable {
 		pyr4Fbo = CsrGl.fbo(pyr4);
 		pyr8Fbo = CsrGl.fbo(pyr8);
 		pyr16Fbo = CsrGl.fbo(pyr16);
-		for (int i = 0; i < 2; i++) {
-			flow16[i] = CsrGl.featureTexture(sw, sh);
-			flow8[i] = CsrGl.featureTexture(ew, eh);
-			flow4[i] = CsrGl.featureTexture(qw, qh);
-		}
-		flow16Fbo = CsrGl.fbo(flow16);
-		flow8Fbo = CsrGl.fbo(flow8);
-		flow4Fbo = CsrGl.fbo(flow4);
+		ensureMotion();
 		for (int i = 0; i < packATex.length; i++) {
 			packATex[i] = CsrGl.featureTexture(qw, qh);
 		}
@@ -117,6 +132,53 @@ final class CsrFrameGen implements AutoCloseable {
 		netB.ensure(hw, hh);
 		havePrev = false;
 		worldValid = false;
+	}
+
+	private void ensureMotion() {
+		lw[0] = w;
+		lh[0] = h;
+		for (int l = 1; l < CsrMotion.LEVELS; l++) {
+			lw[l] = CsrMotion.halve(lw[l - 1]);
+			lh[l] = CsrMotion.halve(lh[l - 1]);
+		}
+		for (int f = 0; f < 2; f++) {
+			for (int l = 0; l < CsrMotion.LEVELS; l++) {
+				lum[f][l] = CsrGl.texture(lw[l], lh[l], GL30.GL_R16F, GL11.GL_RED, GL30.GL_HALF_FLOAT, true);
+				lumFbo[f][l] = CsrGl.fbo(lum[f][l]);
+			}
+		}
+		tw = CsrMotion.tiles(w);
+		th = CsrMotion.tiles(h);
+		bw = CsrMotion.blocks(tw);
+		bh = CsrMotion.blocks(th);
+		gmGridTex = floatTexture(64, 36);
+		gmCostTex = floatTexture(25, 13);
+		gmTex = floatTexture(1, 1);
+		gmGridFbo = CsrGl.fbo(gmGridTex);
+		gmCostFbo = CsrGl.fbo(gmCostTex);
+		gmFbo = CsrGl.fbo(gmTex);
+		blockTex = CsrGl.featureTexture(bw, bh);
+		tv8 = CsrGl.featureTexture(tw, th);
+		tv8s = CsrGl.featureTexture(tw, th);
+		tv4 = CsrGl.featureTexture(tw, th);
+		occlTex = CsrGl.featureTexture(tw, th);
+		blockFbo = CsrGl.fbo(blockTex);
+		tv8Fbo = CsrGl.fbo(tv8);
+		tv8sFbo = CsrGl.fbo(tv8s);
+		tv4Fbo = CsrGl.fbo(tv4);
+		occlFbo = CsrGl.fbo(occlTex);
+		for (int d = 0; d < 2; d++) {
+			for (int i = 0; i < 2; i++) {
+				mv[d][i] = CsrGl.featureTexture(tw, th);
+				mvFbo[d][i] = CsrGl.fbo(mv[d][i]);
+			}
+		}
+		mvHistValid = false;
+	}
+
+	/** RGBA32F: the global-motion costs use 1e9 as "no overlap", which half floats cannot hold. */
+	private static int floatTexture(int width, int height) {
+		return CsrGl.texture(width, height, GL30.GL_RGBA32F, GL11.GL_RGBA, GL11.GL_FLOAT, false);
 	}
 
 	private int mainFbo(RenderTarget main) {
@@ -133,6 +195,7 @@ final class CsrFrameGen implements AutoCloseable {
 	void reset() {
 		havePrev = false;
 		worldValid = false;
+		mvHistValid = false;
 	}
 
 	/** After world + post, before GUI: keep the HUD-free image for the HUD mask. */
@@ -177,6 +240,8 @@ final class CsrFrameGen implements AutoCloseable {
 			cur = next;
 			havePrev = true;
 			worldValid = false;
+			lumCur ^= 1;
+			buildLuma(curr);
 			if (!pair) {
 				CsrGl.check("CSR Frame Gen history");
 				return false;
@@ -219,7 +284,56 @@ final class CsrFrameGen implements AutoCloseable {
 		}
 	}
 
+	/** FG2_Luma + FG2_Halve for the new frame into this frame's pyramid. */
+	private void buildLuma(int color) {
+		CsrTimers.begin("fg_luma");
+		int[] l = lum[lumCur];
+		meLuma.use().i("uMode", 0).tex("uSrc", 0, color, 0).f("uLuma", LUMA[0], LUMA[1], LUMA[2]);
+		CsrGl.draw(lumFbo[lumCur][0], lw[0], lh[0], vao);
+		meLuma.i("uMode", 1);
+		for (int i = 1; i < CsrMotion.LEVELS; i++) {
+			meLuma.tex("uSrc", 0, l[i - 1], 0).f("uDstSize", lw[i], lh[i]);
+			CsrGl.draw(lumFbo[lumCur][i], lw[i], lh[i], vao);
+		}
+		CsrTimers.end();
+	}
+
+	private void globalMotion(int prevL3, int currL3) {
+		CsrTimers.begin("fg_gmv");
+		gmGrid.use().tex("uPrev", 0, prevL3, 0).tex("uCurr", 1, currL3, 0);
+		CsrGl.draw(gmGridFbo, 64, 36, vao);
+		gmCost.use().tex("uGrid", 0, gmGridTex, 0);
+		CsrGl.draw(gmCostFbo, 25, 13, vao);
+		gmPick.use().tex("uCost", 0, gmCostTex, 0);
+		CsrGl.draw(gmFbo, 1, 1, vao);
+		CsrTimers.end();
+	}
+
+	/** FgV2 SearchPyramid: vectors from each pixel of {@code b} to its match in {@code a}. */
+	private void search(int[] a, int[] b, int hist, int dstFbo, String dir) {
+		CsrTimers.begin("fg_p8_" + dir);
+		meBlock.use().tex("uA", 0, a[3], 0).tex("uB", 1, b[3], 0).i("uLSize", lw[3], lh[3]).i("uTiles", tw, th);
+		CsrGl.draw(blockFbo, bw, bh, vao);
+		meP8.use().tex("uA", 0, a[3], 0).tex("uB", 1, b[3], 0).i("uLSize", lw[3], lh[3])
+				.tex("uBlock", 2, blockTex, 0).tex("uHist", 3, hist, 0).tex("uGmv", 4, gmTex, 0)
+				.i("uHistValid", mvHistValid ? 1 : 0).f("uInSize", w, h);
+		CsrGl.draw(tv8Fbo, tw, th, vao);
+		CsrTimers.end();
+		CsrTimers.begin("fg_refine_" + dir);
+		meProp.use().tex("uA", 0, a[3], 0).tex("uB", 1, b[3], 0).i("uLSize", lw[3], lh[3])
+				.tex("uMv", 2, tv8, 0).i("uTiles", tw, th);
+		CsrGl.draw(tv8sFbo, tw, th, vao);
+		meP4.use().tex("uA", 0, a[2], 0).tex("uB", 1, b[2], 0).i("uLSize", lw[2], lh[2])
+				.tex("uMv", 2, tv8s, 0).i("uTiles", tw, th);
+		CsrGl.draw(tv4Fbo, tw, th, vao);
+		meP2.use().tex("uA", 0, a[1], 0).tex("uB", 1, b[1], 0).i("uLSize", lw[1], lh[1])
+				.tex("uMv", 2, tv4, 0).i("uTiles", tw, th).f("uInSize", w, h);
+		CsrGl.draw(dstFbo, tw, th, vao);
+		CsrTimers.end();
+	}
+
 	private void runFlowAndNets(int prev, int curr) {
+		CsrTimers.begin("fg_pyr");
 		// Luma pyramid: 1/4 (box 4x4 from colour), 1/8, 1/16 + mip chain for the frame mean.
 		pyr.use().i("uMode", 0).tex("uPrev", 0, prev, 0).tex("uCurr", 1, curr, 0).tex("uSrc", 2, prev, 0)
 				.i("uSrcSize", w, h).f("uLuma", LUMA[0], LUMA[1], LUMA[2]);
@@ -230,26 +344,34 @@ final class CsrFrameGen implements AutoCloseable {
 		CsrGl.draw(pyr16Fbo, sw, sh, vao);
 		CsrGl.generateMips(pyr16);
 
-		// Hierarchical block match, coarse to fine.
-		search.use().tex("uPyr", 0, pyr16, 0).i("uSize", sw, sh)
-				.tex("uCoarseB", 1, pyr8, 0).tex("uCoarseF", 2, pyr8, 0).i("uCoarseSize", 1, 1)
-				.i("uHasCoarse", 0).i("uRadius", 4);
-		CsrGl.draw(flow16Fbo, sw, sh, vao);
-		search.tex("uPyr", 0, pyr8, 0).i("uSize", ew, eh)
-				.tex("uCoarseB", 1, flow16[0], 0).tex("uCoarseF", 2, flow16[1], 0).i("uCoarseSize", sw, sh)
-				.i("uHasCoarse", 1).i("uRadius", 1);
-		CsrGl.draw(flow8Fbo, ew, eh, vao);
-		search.tex("uPyr", 0, pyr4, 0).i("uSize", qw, qh)
-				.tex("uCoarseB", 1, flow8[0], 0).tex("uCoarseF", 2, flow8[1], 0).i("uCoarseSize", ew, eh);
-		CsrGl.draw(flow4Fbo, qw, qh, vao);
+		CsrTimers.end();
 
-		packA.use().tex("uPyr4", 0, pyr4, 0).tex("uBwd", 1, flow4[0], 0).tex("uFwd", 2, flow4[1], 0)
-				.tex("uCurrFinal", 3, curr, 0).tex("uCurrWorld", 4, worldTex, 0)
-				.i("uQSize", qw, qh).f("uFlowScale", weights.flowScale());
+		int[] prevL = lum[lumCur ^ 1];
+		int[] currL = lum[lumCur];
+		globalMotion(prevL[3], currL[3]);
+		int hist = mvCur;
+		mvCur ^= 1;
+		search(prevL, currL, mv[0][hist], mvFbo[0][mvCur], "bwd");
+		search(currL, prevL, mv[1][hist], mvFbo[1][mvCur], "fwd");
+		mvHistValid = true;
+
+		CsrTimers.begin("fg_occl");
+		meOccl.use().tex("uBwd", 0, mv[0][mvCur], 0).tex("uFwd", 1, mv[1][mvCur], 0).f("uTiles", tw, th);
+		CsrGl.draw(occlFbo, tw, th, vao);
+		CsrTimers.end();
+
+		CsrTimers.begin("fg_packa");
+		packA.use().tex("uPyr4", 0, pyr4, 0).tex("uMv", 1, mv[0][mvCur], 0).tex("uOccl", 2, occlTex, 0)
+				.tex("uCurrFinal", 3, curr, 0).tex("uCurrWorld", 4, worldTex, 0).tex("uPrev", 5, prev, 0)
+				.i("uQSize", qw, qh).i("uTiles", tw, th).f("uFlowScale", weights.flowScale());
 		common(packA);
 		CsrGl.draw(packAFbo, qw, qh, vao);
+		CsrTimers.end();
 
+		CsrTimers.begin("fg_netA");
 		int[] a = netA.run(conv, vao, packATex);
+		CsrTimers.end();
+		CsrTimers.begin("fg_packb");
 
 		packB.use().tex("uPrev", 0, prev, 0).tex("uCurr", 1, curr, 0).i("uCurrFinal", 1)
 				.tex("uPackA0", 2, packATex[0], 0).tex("uPackA1", 3, packATex[1], 0)
@@ -257,9 +379,12 @@ final class CsrFrameGen implements AutoCloseable {
 				.f("uHSize", hw, hh).f("uT", T).f("uFlowScale", weights.flowScale());
 		common(packB);
 		CsrGl.draw(packBFbo, hw, hh, vao);
+		CsrTimers.end();
 
 		lastNetA = a;
+		CsrTimers.begin("fg_netB");
 		lastNetB = netB.run(conv, vao, packBTex);
+		CsrTimers.end();
 	}
 
 	private void composeInto(int fbo, int prev, int curr) {
@@ -273,7 +398,9 @@ final class CsrFrameGen implements AutoCloseable {
 				.f("uMaskA", weights.maskA()).f("uMaskB", weights.maskB())
 				.i("uLpSigmoid", weights.lpSigmoid() ? 1 : 0).f("uFlowScale", weights.flowScale());
 		common(compose);
+		CsrTimers.begin("fg_compose");
 		CsrGl.draw(fbo, w, h, vao);
+		CsrTimers.end();
 	}
 
 	private void common(CsrPass p) {
@@ -281,11 +408,22 @@ final class CsrFrameGen implements AutoCloseable {
 	}
 
 	private void releaseTargets() {
-		CsrGl.deleteFbos(histFbo[0], histFbo[1], worldFbo, pyr4Fbo, pyr8Fbo, pyr16Fbo,
-				flow16Fbo, flow8Fbo, flow4Fbo, packAFbo, packBFbo, mainFbo);
+		CsrGl.deleteFbos(histFbo[0], histFbo[1], worldFbo, pyr4Fbo, pyr8Fbo, pyr16Fbo, packAFbo, packBFbo, mainFbo,
+				gmGridFbo, gmCostFbo, gmFbo, blockFbo, tv8Fbo, tv8sFbo, tv4Fbo, occlFbo);
 		CsrGl.deleteTextures(hist[0], hist[1], worldTex, pyr4, pyr8, pyr16,
-				flow16[0], flow16[1], flow8[0], flow8[1], flow4[0], flow4[1],
-				packATex[0], packATex[1], packBTex[0], packBTex[1], packBTex[2]);
+				packATex[0], packATex[1], packBTex[0], packBTex[1], packBTex[2],
+				gmGridTex, gmCostTex, gmTex, blockTex, tv8, tv8s, tv4, occlTex);
+		for (int i = 0; i < 2; i++) {
+			CsrGl.deleteFbos(lumFbo[i]);
+			CsrGl.deleteTextures(lum[i]);
+			CsrGl.deleteFbos(mvFbo[i]);
+			CsrGl.deleteTextures(mv[i]);
+			java.util.Arrays.fill(lum[i], 0);
+			java.util.Arrays.fill(lumFbo[i], 0);
+			java.util.Arrays.fill(mv[i], 0);
+			java.util.Arrays.fill(mvFbo[i], 0);
+		}
+		mvHistValid = false;
 		hist[0] = hist[1] = histFbo[0] = histFbo[1] = 0;
 		mainFbo = mainFboTex = 0;
 		havePrev = false;
@@ -296,10 +434,13 @@ final class CsrFrameGen implements AutoCloseable {
 		CsrGl.Saved saved = CsrGl.Saved.capture();
 		try {
 			releaseTargets();
+			CsrTimers.close();
 			netA.close();
 			netB.close();
 			pyr.close();
-			search.close();
+			for (CsrPass p : new CsrPass[] {meLuma, gmGrid, gmCost, gmPick, meBlock, meP8, meProp, meP4, meP2, meOccl}) {
+				p.close();
+			}
 			packA.close();
 			packB.close();
 			compose.close();

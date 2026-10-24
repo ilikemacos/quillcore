@@ -60,7 +60,7 @@ networks, and again when unpacked.
 
 `CsrFeature` disables a feature for the session and logs **one** warning if any of these happens:
 - weights are missing or invalid (wrong version, shape, or count; NaN or Inf; malformed JSON);
-- GL 3.3, 5 colour attachments / draw buffers, or 12 fragment texture units are not available;
+- GL 3.2 plus either GL 3.3 or `ARB_explicit_attrib_location` + `ARB_sampler_objects`, 5 colour attachments / draw buffers, or 12 fragment texture units are not available;
 - a shader fails to compile or link, or an FBO is incomplete;
 - any GL error is raised inside a CSR section (checked every frame);
 - any other exception is thrown in a hook.
@@ -106,7 +106,7 @@ real frame N:
 
 1. Copy N into a 2-entry history ring. A HUD-free copy of N, taken before the GUI pass, is kept for the HUD mask.
 2. If N-1 exists at the same size:
-   - build the flow inputs (simplified, see below);
+   - run the FgV2 motion estimator (see below);
    - run PackA, then **netA** at 1/4 res (8→18→18→18→7);
    - run PackB, then **netB** at 1/2 res (12→6→5);
    - run Compose at t = 0.5 straight into the default framebuffer.
@@ -147,25 +147,40 @@ When enabled, this is logged as a warning, and a small note is drawn on screen (
 | VSync off, FPS cap < Unlimited | After the interpolated present, sleep `min(period/2, 20 ms)`, where `period = 1/cap`, then present N. If the cap was not already the bottleneck, this **lowers the real frame rate**. |
 | VSync off, Unlimited | No pacing is possible. The two presents go back to back (tearing, no smoothness gain). A warning says so. |
 
-### Flow is simplified (known quality limit)
+### Motion estimation
 
-In the reference, netA/netB take their flow inputs from the FgV2 hierarchical block-match: P8/P16 search,
-propagation, refinement, forward flow, consistency, HUD mask and scene-cut kernels. That is about 1000 lines of
-HLSL, and it was **not** part of the files this port was based on. QuillCore replaces it with a much smaller
-estimator:
+The flow inputs come from a GLSL port of the FgV2 block-match (`me_*.fsh`, `gm_*.fsh`, `fg_packa.fsh`):
 
-- **Luma pyramid:** 1/4 res (4×4 box, as in PackA), then 1/8 and 1/16.
-- **Block match:** 3×3 SAD with a small length penalty, ±4 full search at 1/16, then at 1/8 and 1/4 the best of
-  9 propagated coarse candidates refined ±1. Backward and forward vectors are computed separately.
-- **Confidence:** `1 - SAD/0.9`. **Occlusion:** the forward/backward consistency error, `|bwd + fwd(q + bwd)|`,
-  normalised by 8 px.
-- **HUD mask:** pixels where the final frame differs from the pre-GUI frame by more than 2/255. This mask is new;
-  the reference used its own detector.
-- **Scene cut:** the mean |Δluma| over the frame, from the top mip of the 1/16 level, is above 0.15.
+- **Pyramid:** 4-level R16F luma pyramid, full res down to 1/8, ping-ponged so the previous frame's levels are
+  reused.
+- **Global motion:** 64×36 grid, 25×13 cost surface, 1×1 pick. Fed to the tile search as a candidate.
+- **Tile search (per direction, bwd then fwd):** block consensus, P8 on L3 (±4 SAD + census, history and
+  global candidates), propagation, P4 on L2, then a Lucas-Kanade refine on L1. The previous frame's result is
+  the history candidate.
+- **Occlusion:** forward/backward consistency, as in the reference.
+- **PackA** picks per-tile vectors with `pickTileV`. Vectors are y-flipped and divided by `flowScale` (32).
 
-Vectors are packed in the same units the reference used (full-res pixels / `flowScale` = 32). The networks were
-trained against FgV2's flow, though, so their behaviour on this flow is **not guaranteed** to match the
-reference. Expect more warping artefacts on fast motion and thin structures.
+Known differences from the reference:
+
+- Fetches clamp to the level size, not the tile grid.
+- Tiles and blocks are aligned from the bottom edge (GL orientation).
+- Ties between equal-cost candidates may break in a different order.
+
+Not ported:
+
+- affine / RANSAC global snap;
+- `StaticCount` / `HudMask` (the pre-GUI diff mask described below is used instead);
+- `FG2_SceneCut` (scene cut is the mean |Δluma| over the coarsest pyramid level, above 0.15);
+- the wide-search, ambiguity, temporal and edge-smooth modes.
+
+HUD mask: pixels where the final frame differs from the pre-GUI frame by more than 2/255.
+
+## GPU timers
+
+When GL 3.3 or `ARB_timer_query` is present, every pass is wrapped in a `GL_TIME_ELAPSED` query. Each pass has two
+queries used alternately, and a result is read only once `GL_QUERY_RESULT_AVAILABLE` says so, so the CPU never
+waits. Samples that aren't ready are skipped. Averages are logged every ~5 s
+(`CSR GPU ms/pass (5s avg): …`) and written to the bench report as `gpuPassMs`.
 
 ## Per-pass cost estimates
 
@@ -195,10 +210,9 @@ The network total is **1512 MACs** and **63 conv fetches** per LR pixel, which i
 | Pass | Res (1080p) | MACs/px | Data fetches/px |
 |------|-------------|--------:|----------------:|
 | history + HUD-free copies | 1920×1080 |, | 2–3 blits |
-| pyramid | 480×270, 240×135, 120×68 |, | 32 / 4 / 4 |
-| block match 1/16 (±4) | 120×68 |, | 2952 |
-| block match 1/8 (9 cand. + ±1) | 240×135 |, | 684 |
-| block match 1/4 (9 cand. + ±1) | 480×270 |, | 684 |
+| luma pyramid | 1920×1080 … 240×135 |, | 1 / 4 / 4 / 4 |
+| global motion | 64×36, 25×13, 1×1 |, | small |
+| motion search ×2 dirs | 240×135 tiles |, | see `me_*.fsh`; measure with the GPU timers |
 | PackA | 480×270 |, | 6 |
 | **netA** 8→18→18→18→7 | 480×270 | **8262** | 153 |
 | PackB | 960×540 |, | ~20 (7 bilinear + 9 texel + 4 bilinear) |
@@ -206,13 +220,13 @@ The network total is **1512 MACs** and **63 conv fetches** per LR pixel, which i
 | Compose | 1920×1080 |, | ~12 (≈8 bilinear + HUD 2 + misc) |
 | extra present + re-blit | 1920×1080 |, | 1 blit + 1 swap |
 
-At 1080p that is netA ≈ **1.07 GMAC**, netB ≈ **0.48 GMAC**, and the block match ≈ 135 M fetches per real frame.
+At 1080p that is netA ≈ **1.07 GMAC** and netB ≈ **0.48 GMAC** per real frame.
 
 ## Limits
 
 - No GPU verification in this environment: the shaders are unverified, and so is any shader-vs-CPU parity.
 - Flux and FSR1 are mutually exclusive.
-- Frame Gen flow is simplified (above). The HUD mask needs the pre-GUI capture, so on frames where it is missing
+- Frame Gen motion estimation leaves out parts of FgV2 (listed above). The HUD mask needs the pre-GUI capture, so on frames where it is missing
   the mask is empty and HUD ghosting is possible.
 - Frame Gen only runs in a world (not on the title screen) and pauses while minimised. History is reset on
   resize, so no pair spans a discontinuity.

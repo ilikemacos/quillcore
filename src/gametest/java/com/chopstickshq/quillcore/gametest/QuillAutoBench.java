@@ -123,6 +123,7 @@ public final class QuillAutoBench implements ClientModInitializer {
 				+ "; fullscreen=" + mc.getWindow().isFullscreen() + "; segmentSeconds=" + segTicks / 20 + "; seed=20261023; renderDistance=12; vsync=off; cap=260; throttling=disabled; unfocusedTicks=" + unfocusedTicks + "; iconifiedTicks=" + iconifiedTicks);
 		try {
 			Path out = Path.of(System.getProperty("quillcore.autobench.out", "quill-test-report"));
+			report.gpuPassMs(com.chopstickshq.quillcore.bench.GpuPassTimes.averages());
 			report.write(out);
 			QuillCore.LOGGER.info("[quill-bench] wrote {}", out.toAbsolutePath());
 		} catch (Exception e) {
