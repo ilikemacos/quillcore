@@ -29,13 +29,17 @@
 	},
 	"mixins": [
 		"quillcore.mixins.json",
-		"quillcore.client.mixins.json"
+		"quillcore.client.mixins.json",
+		"quillcore.client.ui.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.19.5",
 		"minecraft": "~1.21.8",
 		"java": ">=21",
 		"fabric-api": "*"
+	},
+	"breaks": {
+		"sodium": "*"
 	},
 	"suggests": {
 		"modmenu": "*",

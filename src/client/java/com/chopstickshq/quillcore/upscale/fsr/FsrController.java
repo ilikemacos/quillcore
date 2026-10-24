@@ -2,11 +2,14 @@ package com.chopstickshq.quillcore.upscale.fsr;
 
 import com.chopstickshq.quillcore.common.QuillConfig;
 import com.chopstickshq.quillcore.common.QuillCore;
+import com.chopstickshq.quillcore.render.ConflictingRendererCheck;
 import com.chopstickshq.quillcore.upscale.UpscaleBackend;
 import com.chopstickshq.quillcore.upscale.UpscaleRegistry;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
+
+import java.util.List;
 
 /**
  * Orchestrates FSR1 main-target scale + EASU/RCAS around {@code GameRenderer#render}.
@@ -15,7 +18,7 @@ import net.minecraft.client.Minecraft;
 public final class FsrController {
 	private static Fsr1Upscaler upscaler;
 	private static boolean pipelinesReady;
-	private static boolean sodiumWarned;
+	private static boolean conflictWarned;
 	private static boolean activeThisFrame;
 	private static int nativeW;
 	private static int nativeH;
@@ -67,7 +70,7 @@ public final class FsrController {
 		if (!shouldRun()) {
 			return;
 		}
-		warnSodiumOnce();
+		warnConflictOnce();
 		Minecraft mc = Minecraft.getInstance();
 		RenderTarget main = mc.getMainRenderTarget();
 		nativeW = mc.getWindow().getWidth();
@@ -151,15 +154,16 @@ public final class FsrController {
 		}
 	}
 
-	private static void warnSodiumOnce() {
-		if (sodiumWarned) {
+	private static void warnConflictOnce() {
+		if (conflictWarned) {
 			return;
 		}
-		sodiumWarned = true;
-		if (FabricLoader.getInstance().isModLoaded("sodium")) {
-			QuillCore.LOGGER.warn(
-					"Sodium detected: FSR1 uses vanilla main RenderTarget resize. "
-							+ "If world resolution does not change with Sodium, FSR1 is limited/disabled with Sodium — see docs/FEASIBILITY.md."
+		conflictWarned = true;
+		List<String> loaded = ConflictingRendererCheck.findLoaded(FabricLoader.getInstance()::isModLoaded);
+		if (!loaded.isEmpty()) {
+			QuillCore.LOGGER.error(
+					"Conflicting renderer(s) loaded: {}. QuillCore replaces the chunk renderer and declares them as 'breaks' — remove them.",
+					loaded
 			);
 		}
 	}

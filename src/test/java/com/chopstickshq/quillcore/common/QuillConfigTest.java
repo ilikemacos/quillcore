@@ -93,4 +93,16 @@ class QuillConfigTest {
 		assertTrue(s.contains("master=true"));
 		assertTrue(s.contains("upscale=none"));
 	}
+
+	@Test
+	void supportFieldsDefaultAndSanitize() {
+		QuillConfig c = parse("{}");
+		assertEquals(QuillConfig.DEFAULT_SUPPORT_URL, c.supportUrl);
+		assertEquals(0, c.bmcOpenCount);
+		assertFalse(c.bmcNeverShow);
+		c = parse("{\"supportUrl\":\"javascript:alert(1)\",\"bmcOpenCount\":-3,\"bmcLastShownEpochMs\":-9}");
+		assertEquals(QuillConfig.DEFAULT_SUPPORT_URL, c.supportUrl);
+		assertEquals(0, c.bmcOpenCount);
+		assertEquals(0L, c.bmcLastShownEpochMs);
+	}
 }

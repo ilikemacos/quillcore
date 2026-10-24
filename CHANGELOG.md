@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **QuillCore Video Settings screen** (`QuillVideoSettingsScreen`): replaces Options → Video Settings.
+  Tabs General / Quality / Performance / Upscaling (FSR) / Advanced; hover descriptions with impact labels;
+  staged changes with Undo / Apply / Done. Vanilla screen still reachable from Advanced.
+- ModMenu now opens this screen; the Cloth Config screen is linked from Advanced.
+- Small "Buy me a coffee" button (config `supportUrl`) and a rare, dismissible support card shown only
+  inside the settings screen (≥10 opens and ≥7 days since last shown; `bmcNeverShow` turns it off).
+- Pure `SupportPromptPolicy` and `StagedSettings` with unit tests.
+
 ## 0.4.0, 2026-10-22
 
 ### Added
