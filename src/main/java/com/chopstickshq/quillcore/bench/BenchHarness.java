@@ -82,6 +82,11 @@ public final class BenchHarness {
 			if (m.frameTimeP99Ms != null && m.frameTimeP99Ms > 0.0) {
 				m.pct1LowFps = 1000.0 / m.frameTimeP99Ms;
 			}
+			// 0.1% low ≈ reciprocal of 99.9th percentile frame time
+			double p999Ms = percentileMs(sorted, 0.999);
+			if (p999Ms > 0.0) {
+				m.pct01LowFps = 1000.0 / p999Ms;
+			}
 		}
 		long elapsedMs = Math.max(1L, System.currentTimeMillis() - startedAtMs);
 		long delta = Math.max(0L, m.memoryUsedBytes - startedUsedBytes);

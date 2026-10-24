@@ -39,7 +39,22 @@ class BenchReportTest {
 		r.add("off", m(null, 4.5));
 		String[] lines = r.toCsv().split("\n");
 		assertEquals(BenchReport.CSV_HEADER, lines[0]);
-		assertEquals("0,off,,,,,4.500,", lines[1]);
+		assertEquals("0,off,,,,,4.500,,,,,", lines[1]);
+	}
+
+	@Test
+	void csvAndJsonCarryVertexFootprint() {
+		BenchMetrics b = m(null, null);
+		b.vanillaVertexBytes = 196608L;
+		b.quillVertexBytes = 79872L;
+		b.vertexByteReductionPct = 59.375;
+		BenchReport r = new BenchReport();
+		r.add("on", b);
+		assertTrue(r.toCsv().split("\n")[1].endsWith(",196608,79872,59.375"));
+		String json = r.toJson();
+		assertTrue(json.contains("\"vanillaVertexBytes\": 196608"));
+		assertTrue(json.contains("\"quillVertexBytes\": 79872"));
+		assertTrue(json.contains("\"vertexByteReductionPct\": 59.375"));
 	}
 
 	@Test

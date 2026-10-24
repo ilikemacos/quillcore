@@ -13,7 +13,7 @@ import java.util.Locale;
  * Pure Java, no Minecraft imports. Missing values are written as null / empty — never invented.
  */
 public final class BenchReport {
-	public static final String CSV_HEADER = "segment,label,avgFps,pct1LowFps,frameTimeP50Ms,frameTimeP99Ms,msptAvg,memoryUsedBytes";
+	public static final String CSV_HEADER = "segment,label,avgFps,pct1LowFps,frameTimeP50Ms,frameTimeP99Ms,msptAvg,memoryUsedBytes,pct01LowFps,vanillaVertexBytes,quillVertexBytes,vertexByteReductionPct";
 
 	private final List<String> labels = new ArrayList<>();
 	private final List<BenchMetrics> segments = new ArrayList<>();
@@ -101,7 +101,10 @@ public final class BenchReport {
 					.append(csv(m.avgFps)).append(',').append(csv(m.pct1LowFps)).append(',')
 					.append(csv(m.frameTimeP50Ms)).append(',').append(csv(m.frameTimeP99Ms)).append(',')
 					.append(csv(m.tickDurationMs)).append(',')
-					.append(m.memoryUsedBytes == null ? "" : m.memoryUsedBytes.toString()).append('\n');
+					.append(lng(m.memoryUsedBytes)).append(',')
+					.append(csv(m.pct01LowFps)).append(',')
+					.append(lng(m.vanillaVertexBytes)).append(',').append(lng(m.quillVertexBytes)).append(',')
+					.append(csv(m.vertexByteReductionPct)).append('\n');
 		}
 		return sb.toString();
 	}
@@ -116,16 +119,20 @@ public final class BenchReport {
 					.append(", \"label\": ").append(str(labels.get(i)))
 					.append(", \"avgFps\": ").append(num(m.avgFps))
 					.append(", \"pct1LowFps\": ").append(num(m.pct1LowFps))
+					.append(", \"pct01LowFps\": ").append(num(m.pct01LowFps))
 					.append(", \"frameTimeP50Ms\": ").append(num(m.frameTimeP50Ms))
 					.append(", \"frameTimeP99Ms\": ").append(num(m.frameTimeP99Ms))
 					.append(", \"msptAvg\": ").append(num(m.tickDurationMs))
+					.append(", \"vanillaVertexBytes\": ").append(m.vanillaVertexBytes == null ? "null" : m.vanillaVertexBytes.toString())
+					.append(", \"quillVertexBytes\": ").append(m.quillVertexBytes == null ? "null" : m.quillVertexBytes.toString())
+					.append(", \"vertexByteReductionPct\": ").append(num(m.vertexByteReductionPct))
 					.append(", \"notes\": ").append(str(m.notes))
 					.append(", \"fpsPerSecond\": ").append(arr(fpsSeries.get(i)))
 					.append(", \"frameTimeMsSeries\": ").append(arr(frameMsSeries.get(i)))
 					.append('}').append(i + 1 < segments.size() ? "," : "").append('\n');
 		}
 		sb.append("  ],\n  \"summary\": {\n");
-		String[] metrics = {"avgFps", "pct1LowFps", "frameTimeP50Ms", "frameTimeP99Ms", "msptAvg"};
+		String[] metrics = {"avgFps", "pct1LowFps", "pct01LowFps", "frameTimeP50Ms", "frameTimeP99Ms", "msptAvg"};
 		for (int k = 0; k < metrics.length; k++) {
 			java.util.function.Function<BenchMetrics, Double> f = field(metrics[k]);
 			Double on = mean("on", f), off = mean("off", f);
@@ -148,9 +155,13 @@ public final class BenchReport {
 		return switch (name) {
 			case "avgFps" -> m -> m.avgFps;
 			case "pct1LowFps" -> m -> m.pct1LowFps;
+			case "pct01LowFps" -> m -> m.pct01LowFps;
 			case "frameTimeP50Ms" -> m -> m.frameTimeP50Ms;
 			case "frameTimeP99Ms" -> m -> m.frameTimeP99Ms;
 			case "msptAvg" -> m -> m.tickDurationMs;
+			case "vanillaVertexBytes" -> m -> m.vanillaVertexBytes == null ? null : m.vanillaVertexBytes.doubleValue();
+			case "quillVertexBytes" -> m -> m.quillVertexBytes == null ? null : m.quillVertexBytes.doubleValue();
+			case "vertexByteReductionPct" -> m -> m.vertexByteReductionPct;
 			default -> throw new IllegalArgumentException(name);
 		};
 	}
@@ -163,6 +174,10 @@ public final class BenchReport {
 
 	private static String csv(Double d) {
 		return d == null || d.isNaN() ? "" : String.format(Locale.ROOT, "%.3f", d);
+	}
+
+	private static String lng(Long l) {
+		return l == null ? "" : l.toString();
 	}
 
 	private static String num(Double d) {

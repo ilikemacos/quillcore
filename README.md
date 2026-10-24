@@ -4,7 +4,7 @@
 
 Open-source Fabric optimization suite for Minecraft Java Edition. QuillCore combines Quill Logic (game-logic optimizations) and Quill Render (client visual cutoffs) with modular upscaling / frame-generation backends.
 
-Inspired by the *goals* of projects like Sodium and Lithium. QuillCore is an **independent** implementation, it does **not** copy their source and does **not** imply endorsement.
+QuillCore is an **independent implementation**. Quill Render is being built as its own clean-room chunk renderer that **replaces** Sodium, QuillCore declares Sodium incompatible (`breaks`) and will not launch alongside it. It does **not** use Sodium's source and does **not** imply endorsement by the Sodium or Lithium projects. Coming from Sodium? Chunk rendering stays vanilla until the new renderer ships.
 
 ## Status: 0.4.0
 
@@ -24,7 +24,7 @@ Inspired by the *goals* of projects like Sodium and Lithium. QuillCore is an **i
 | Weather radius cap (Quill Render, opt-in) | Implemented (default off) |
 | Bench tick/frame sampling | Implemented (no fabricated Sodium numbers) |
 | FrameFX external launcher | Implemented (Windows probe/launch only; not in-process) |
-| FSR1 spatial (EASU+RCAS) | **Implemented**, main-RT scale + AMD MIT shaders; Sodium may limit (see FEASIBILITY) |
+| FSR1 spatial (EASU+RCAS) | **Implemented**, main-RT scale + AMD MIT shaders |
 | CSR | Permanently excluded |
 
 ## Supported versions
@@ -50,6 +50,12 @@ export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64   # or any JDK 25+
 ```
 
 Jar output: `build/libs/quillcore-0.4.0.jar`
+
+## Settings screen
+
+Options → Video Settings opens the QuillCore video settings screen (also via ModMenu). It covers the vanilla
+video options plus QuillCore render cutoffs, caps, logic throttles and FSR 1. Changes are staged until
+**Apply**/**Done**; **Undo** reverts pending edits. The original vanilla screen is under **Advanced**.
 
 ## Commands (permission level 2)
 
@@ -83,7 +89,7 @@ Defaults are conservative. Flip `masterEnabled`, `renderEnabled`, or `logicEnabl
 | **AMD FSR1** (`fsr1`) | **Working path:** shrinks the vanilla main `RenderTarget` before `renderLevel`, runs **EASU + RCAS** (AMD FidelityFX FSR1, MIT), restores native resolution before GUI/HUD. Quality presets map to AMD render scales. |
 | CSR | Permanently excluded, never labelled as FSR. |
 
-**Sodium:** FSR1 uses the vanilla main target. If Sodium ignores that resize, FSR1 is limited/disabled with Sodium, the config/log warns. Prefer testing without Sodium first.
+**Sodium:** not supported, QuillCore replaces it and Fabric will refuse to load both. FSR1 uses the vanilla main target.
 
 **License:** FSR1 algorithm © AMD, MIT, see `third_party/amd-fsr1/`. FSR2/3 SDK licenses are separate; QuillCore does not ship those SDKs.
 
@@ -99,3 +105,9 @@ Built against Minecraft 1.21.8 only. To try a newer 1.21.x, bump the versions in
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+## Mesh cache in system RAM
+
+`meshRamCacheGb` in `config/quillcore.json` (0 to 16, off by default) sets how much system RAM QuillCore may use to keep chunk meshes that were pushed out of video memory. When a section scrolls back into view it re-uploads from RAM instead of being rebuilt.
+
+This does **not** give your GPU more VRAM. No mod can do that: the graphics driver owns video memory, and on laptops with shared memory the BIOS/driver decides the split. QuillCore only tracks its own mesh uploads against a budget (evicting at 95%, back down to 85%) and throttles re-uploads per frame (8 MB) to avoid stutter. The budget is half of the dedicated VRAM the driver reports (NVIDIA and AMD), or 1 GB if it reports nothing. Only sections that already have a RAM copy are evicted, so nothing has to be rebuilt. A section coming back can skip one frame if that frame's re-upload quota is spent. Translucent layers are not cached.
