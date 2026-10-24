@@ -16,7 +16,7 @@ svg{display:block;height:auto}h1{font-size:22px;margin:0 0 4px}h2{font-size:15px
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
 .card .k{color:var(--mute);font-size:12px}.card .v{font-size:28px;font-weight:650;margin:4px 0}
 .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;color:#fff}
-.pass{background:var(--ok)}.fail{background:var(--bad)}.na{background:var(--na)}
+.pass{background:var(--ok)}.inv{background:#b7791f}.fail{background:var(--bad)}.na{background:var(--na)}
 .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:8px;display:flex}.bar i{display:block;height:100%}
 table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--mute);font-weight:500;font-size:12px}
 code{font:12px ui-monospace,Consolas,monospace}.msg{color:var(--bad);white-space:pre-wrap}
@@ -34,7 +34,7 @@ function render(D) {
 const app = document.getElementById('app');
 app.innerHTML = '';
 const m = D.meta || {};
-app.append($(`<header><h1>QuillCore test dashboard</h1><div class="sub">${esc(m.generated)} · commit <code>${esc(m.commit)}</code> · ${D.overall === 'pass' ? '<span class="pill pass">ALL GREEN</span>' : D.overall === 'fail' ? '<span class="pill fail">FAILURES</span>' : '<span class="pill na">PARTIAL</span>'}</div></header>`));
+app.append($(`<header><h1>QuillCore test dashboard</h1><div class="sub">${esc(m.generated)} · commit <code>${esc(m.commit)}</code> · ${D.overall === 'pass' ? '<span class="pill pass">ALL GREEN</span>' : D.overall === 'fail' ? '<span class="pill fail">FAILURES</span>' : D.overall === 'invalid' ? '<span class="pill inv">TESTS GREEN · BENCH INVALID</span>' : '<span class="pill na">PARTIAL</span>'}</div></header>`));
 
 // ---- layer cards
 app.append($('<h2>Layers</h2>'));
@@ -42,6 +42,7 @@ const cards = $('<div class="grid"></div>');
 for (const L of D.layers) {
   let status, body;
   if (L.status === 'not run') { status = '<span class="pill na">NOT RUN</span>'; body = `<div class="v" style="color:var(--na)">—</div><div class="sub">${esc(L.note || 'layer did not run')}</div>`; }
+  else if (L.status === 'invalid') { status = '<span class="pill inv">INVALID</span>'; body = `<div class="v" style="color:#b7791f">${L.passed}<span class="sub" style="font-size:16px"> / ${L.tests} segments</span></div><div class="sub">Numbers not comparable:</div><ul class="sub" style="margin:4px 0 0;padding-left:18px">${(L.invalidReasons || []).map(r => `<li>${esc(r)}</li>`).join('')}</ul>`; }
   else {
     status = L.failed > 0 || L.tests === 0 ? '<span class="pill fail">FAIL</span>' : '<span class="pill pass">PASS</span>';
     const p = L.tests ? L.passed / L.tests * 100 : 0, fl = L.tests ? L.failed / L.tests * 100 : 0;
@@ -86,6 +87,7 @@ if (!B || !B.segments || !B.segments.length) {
   app.append($(`<div class="empty">Benchmark not run${D.benchNote ? ' — ' + esc(D.benchNote) : ''}. Numbers appear here only after a real run (<code>gradlew quillTest -PwithBench</code>).</div>`));
 } else {
   const segs = B.segments, S = B.summary || {};
+  if (B.valid === false) app.append($(`<div class="card" style="border-color:#b7791f;margin-bottom:14px"><b style="color:#b7791f">INVALID benchmark — shown for diagnosis only, do not compare these numbers:</b><ul>${B.invalidReasons.map(r => `<li>${esc(r)}</li>`).join('')}</ul></div>`));
   const col = (s, k) => ({name: `${s.label.toUpperCase()} #${s.segment + 1}`, color: s.label === 'on' ? 'var(--on)' : 'var(--off)', dash: k % 2 ? '' : '', pts: s[k] || []});
   const byLabel = (k) => segs.map((s, i) => ({...col(s, k), dash: segs.slice(0, i).filter(x => x.label === s.label).length ? '5 3' : ''}));
   const charts = $('<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))"></div>');

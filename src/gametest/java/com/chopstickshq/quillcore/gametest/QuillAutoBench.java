@@ -33,6 +33,9 @@ public final class QuillAutoBench implements ClientModInitializer {
 	private boolean worldRequested;
 	private int ticks;
 	private int inWorldTicks;
+	// read by FramerateLimitTrackerMixin
+	public static volatile boolean ACTIVE;
+	private int unfocusedTicks, iconifiedTicks;
 	private int segment = -1;
 	private int segmentStart;
 	private boolean done;
@@ -44,6 +47,7 @@ public final class QuillAutoBench implements ClientModInitializer {
 		if (prop == null) return;
 		segTicks = Math.max(5, Integer.parseInt(prop.trim())) * 20;
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+		ACTIVE = true;
 		QuillCore.LOGGER.info("[quill-bench] autobench armed: {}s per segment", segTicks / 20);
 	}
 
@@ -81,6 +85,10 @@ public final class QuillAutoBench implements ClientModInitializer {
 		if (inWorldTicks < WARMUP_TICKS) return;
 		int t = inWorldTicks - WARMUP_TICKS;
 		int idx = t / segTicks;
+		if (segment >= 0) {
+			if (!mc.isWindowActive()) unfocusedTicks++;
+			if (mc.getWindow().isIconified()) iconifiedTicks++;
+		}
 		if (idx != segment) {
 			if (segment >= 0) {
 				BenchHarness.stop();
@@ -111,7 +119,7 @@ public final class QuillAutoBench implements ClientModInitializer {
 		report.environment((error == null ? "" : "ERROR " + error + "; ") + "gpu=" + gpu + "; os="
 				+ System.getProperty("os.name") + "; java=" + System.getProperty("java.version")
 				+ "; resolution=" + mc.getWindow().getWidth() + "x" + mc.getWindow().getHeight()
-				+ "; fullscreen=" + mc.getWindow().isFullscreen() + "; segmentSeconds=" + segTicks / 20 + "; seed=20261023; renderDistance=12; vsync=off; cap=260; inactivityFpsLimit=minimized");
+				+ "; fullscreen=" + mc.getWindow().isFullscreen() + "; segmentSeconds=" + segTicks / 20 + "; seed=20261023; renderDistance=12; vsync=off; cap=260; throttling=disabled; unfocusedTicks=" + unfocusedTicks + "; iconifiedTicks=" + iconifiedTicks);
 		try {
 			Path out = Path.of(System.getProperty("quillcore.autobench.out", "quill-test-report"));
 			report.write(out);
