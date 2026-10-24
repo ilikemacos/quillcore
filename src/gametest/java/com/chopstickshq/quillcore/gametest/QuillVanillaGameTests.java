@@ -26,6 +26,13 @@ import com.chopstickshq.quillcore.logic.HardColliders;
 import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.Entity;
+import com.chopstickshq.quillcore.logic.CollisionKindHolder;
+import com.chopstickshq.quillcore.logic.CollisionKinds;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
@@ -191,5 +198,158 @@ public class QuillVanillaGameTests {
 			if (gap > 0.5) h.fail(msg("cow never reached the shulker, gap " + gap));
 			h.succeed();
 		});
+	}
+
+	private static Cow still(GameTestHelper h, double x, double y, double z) {
+		Cow c = h.spawn(EntityType.COW, new Vec3(x, y, z));
+		c.setNoAi(true);
+		h.onEachTick(() -> c.move(MoverType.SELF, new Vec3(0, -0.15, 0)));
+		return c;
+	}
+
+	private static void near(GameTestHelper h, String what, double got, double want) {
+		if (Math.abs(got - want) > 1.0E-6) h.fail(msg(what + " is " + got + ", want " + want));
+	}
+
+	@GameTest(maxTicks = 100)
+	public void wallStopsWalkerAtFace(GameTestHelper h) {
+		floor(h);
+		for (int z = 0; z < 8; z++) for (int y = 1; y < 3; y++) h.setBlock(5, y, z, Blocks.STONE);
+		Cow c = still(h, 1.5, 1, 3.5);
+		h.onEachTick(() -> c.move(MoverType.SELF, new Vec3(0.2, 0, 0)));
+		h.runAtTickTime(40, () -> {
+			near(h, "cow max x", c.getBoundingBox().maxX, h.absolutePos(new BlockPos(5, 1, 3)).getX());
+			h.succeed();
+		});
+	}
+
+	@GameTest(maxTicks = 400)
+	public void fallThroughAirSectionsLandsOnFloor(GameTestHelper h) {
+		floor(h);
+		Cow c = still(h, 3.5, 40, 3.5);
+		h.runAtTickTime(350, () -> {
+			BlockPos.MutableBlockPos p = h.absolutePos(new BlockPos(3, 39, 3)).mutable();
+			while (h.getLevel().getBlockState(p).getCollisionShape(h.getLevel(), p).isEmpty()) p.move(Direction.DOWN);
+			h.assertTrue(p.getY() < h.absolutePos(new BlockPos(3, 24, 3)).getY(), msg("no air section crossed, landed at " + p));
+			near(h, "cow y", c.getY(), p.getY() + 1);
+			h.assertTrue(c.onGround(), msg("cow not on ground"));
+			h.succeed();
+		});
+	}
+
+	@GameTest(maxTicks = 100)
+	public void scaffoldingHoldsStander(GameTestHelper h) {
+		floor(h);
+		h.setBlock(3, 1, 3, Blocks.SCAFFOLDING);
+		h.setBlock(3, 2, 3, Blocks.SCAFFOLDING);
+		Cow c = still(h, 3.5, 4, 3.5);
+		h.runAtTickTime(60, () -> {
+			near(h, "cow y on scaffolding", c.getY(), h.absolutePos(new BlockPos(3, 3, 3)).getY());
+			h.succeed();
+		});
+	}
+
+	@GameTest(maxTicks = 200)
+	public void powderSnowLetsCowSink(GameTestHelper h) {
+		floor(h);
+		h.setBlock(3, 1, 3, Blocks.POWDER_SNOW);
+		h.setBlock(3, 2, 3, Blocks.POWDER_SNOW);
+		Cow c = still(h, 3.5, 3.2, 3.5);
+		h.runAtTickTime(150, () -> {
+			near(h, "cow y in powder snow", c.getY(), h.absolutePos(new BlockPos(3, 1, 3)).getY());
+			h.succeed();
+		});
+	}
+
+	@GameTest(maxTicks = 100)
+	public void bambooOffsetStopsWalker(GameTestHelper h) {
+		floor(h);
+		h.setBlock(5, 0, 3, Blocks.DIRT);
+		h.setBlock(5, 1, 3, Blocks.BAMBOO);
+		Cow c = still(h, 1.5, 1, 3.5);
+		h.onEachTick(() -> c.move(MoverType.SELF, new Vec3(0.2, 0, 0)));
+		h.runAtTickTime(40, () -> {
+			BlockPos b = h.absolutePos(new BlockPos(5, 1, 3));
+			double want = h.getLevel().getBlockState(b).getCollisionShape(h.getLevel(), b).move(b).min(Direction.Axis.X);
+			near(h, "cow max x at bamboo", c.getBoundingBox().maxX, want);
+			h.succeed();
+		});
+	}
+
+	@GameTest(maxTicks = 100)
+	public void pistonLiftsRider(GameTestHelper h) {
+		floor(h);
+		h.setBlock(3, 1, 3, Blocks.PISTON.defaultBlockState().setValue(PistonBaseBlock.FACING, Direction.UP));
+		h.setBlock(3, 2, 3, Blocks.STONE);
+		Cow c = still(h, 3.5, 3, 3.5);
+		h.runAtTickTime(10, () -> h.setBlock(2, 1, 3, Blocks.REDSTONE_BLOCK));
+		h.runAtTickTime(60, () -> {
+			h.assertBlockPresent(Blocks.STONE, 3, 3, 3);
+			near(h, "cow y after push", c.getY(), h.absolutePos(new BlockPos(3, 4, 3)).getY());
+			h.succeed();
+		});
+	}
+
+	@GameTest(maxTicks = 40)
+	public void supportingBlockTieKeepsVanillaOrder(GameTestHelper h) {
+		floor(h);
+		h.setBlock(2, 0, 3, Blocks.DIRT);
+		BlockPos base = h.absolutePos(BlockPos.ZERO);
+		Cow c = still(h, 2, 1, 3.5);
+		c.setPos(base.getX() + 2.0, base.getY() + 1.0, base.getZ() + 3.5);
+		h.runAtTickTime(10, () -> {
+			BlockPos want = h.absolutePos(new BlockPos(2, 0, 3));
+			h.assertTrue(c.mainSupportingBlockPos.equals(java.util.Optional.of(want)), msg("supporting " + c.mainSupportingBlockPos + " want " + want));
+			h.succeed();
+		});
+	}
+
+	private static byte kind(net.minecraft.world.level.block.Block b) {
+		return ((CollisionKindHolder) b.defaultBlockState()).quillcore$collisionKind();
+	}
+
+	@GameTest
+	public void collisionKindsSortContextBlocksSlow(GameTestHelper h) {
+		h.assertTrue(kind(Blocks.STONE) == CollisionKinds.FULL, msg("stone not full"));
+		h.assertTrue(kind(Blocks.AIR) == CollisionKinds.EMPTY && kind(Blocks.SHORT_GRASS) == CollisionKinds.EMPTY, msg("air/grass not empty " + kind(Blocks.AIR) + " " + kind(Blocks.SHORT_GRASS)));
+		for (var b : List.of(Blocks.SCAFFOLDING, Blocks.POWDER_SNOW, Blocks.MOVING_PISTON, Blocks.BAMBOO, Blocks.STONE_SLAB, Blocks.OAK_FENCE)) {
+			h.assertTrue(kind(b) == CollisionKinds.SLOW, msg(b + " should be slow, is " + kind(b)));
+		}
+		h.succeed();
+	}
+
+	@GameTest(maxTicks = 20)
+	public void blockCollisionsMatchVanilla(GameTestHelper h) {
+		BlockState[] mix = {Blocks.AIR.defaultBlockState(), Blocks.AIR.defaultBlockState(), Blocks.STONE.defaultBlockState(), Blocks.STONE_SLAB.defaultBlockState(),
+				Blocks.SCAFFOLDING.defaultBlockState(), Blocks.POWDER_SNOW.defaultBlockState(), Blocks.OAK_FENCE.defaultBlockState(), Blocks.SHORT_GRASS.defaultBlockState(),
+				Blocks.GLASS.defaultBlockState(), Blocks.HOPPER.defaultBlockState()};
+		java.util.Random r = new java.util.Random(42);
+		for (int x = 0; x < 8; x++) for (int y = 0; y < 6; y++) for (int z = 0; z < 8; z++) h.setBlock(x, y, z, mix[r.nextInt(mix.length)]);
+		Cow c = h.spawn(EntityType.COW, new Vec3(4, 7, 4));
+		c.setNoAi(true);
+		BlockPos o = h.absolutePos(BlockPos.ZERO);
+		h.runAtTickTime(2, () -> {
+			for (int i = 0; i < 2000; i++) {
+				double x0 = o.getX() - 1 + r.nextDouble() * 9, y0 = o.getY() - 1 + r.nextDouble() * 7, z0 = o.getZ() - 1 + r.nextDouble() * 9;
+				AABB box = new AABB(x0, y0, z0, x0 + r.nextDouble() * 2.5, y0 + r.nextDouble() * 2.5, z0 + r.nextDouble() * 2.5);
+				Entity who = r.nextBoolean() ? c : null;
+				List<String> fast = shapes(h, who, box);
+				CollisionKinds.forceVanilla = true;
+				List<String> slow;
+				try {
+					slow = shapes(h, who, box);
+				} finally {
+					CollisionKinds.forceVanilla = false;
+				}
+				if (!fast.equals(slow)) h.fail(msg("box " + box + " fast " + fast + " vanilla " + slow));
+			}
+			h.succeed();
+		});
+	}
+
+	private static List<String> shapes(GameTestHelper h, Entity who, AABB box) {
+		List<String> out = new java.util.ArrayList<>();
+		for (var s : h.getLevel().getBlockCollisions(who, box)) out.add(s.bounds().toString() + s.toAabbs().size());
+		return out;
 	}
 }
