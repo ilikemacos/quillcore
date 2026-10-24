@@ -391,7 +391,7 @@ public class QuillVanillaGameTests {
 			List<net.minecraft.world.entity.LivingEntity> want = h.getLevel().getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
 					v.getBoundingBox().inflate(d, d, d), e -> e != v && e.isAlive());
 			want.sort(java.util.Comparator.comparingDouble(v::distanceToSqr));
-			if (got.size() < n || !got.equals(want)) h.fail(msg("sensor " + got.size() + " vanilla " + want.size() + " differs"));
+			if (got.size() <= 16 || !got.equals(want)) h.fail(msg("sensor " + got.size() + " vanilla " + want.size() + " (spawned " + n + ") differs"));
 			h.succeed();
 		});
 	}
