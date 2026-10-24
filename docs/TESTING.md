@@ -7,6 +7,8 @@ One command runs every layer and writes `build/quill-test-report/`:
 ./gradlew quillTest -PwithBench  # + automated client benchmark (needs a real GPU)
 ```
 
+Each run first moves the previous report (if `index.html` exists) to `build/quill-test-reports/<yyyyMMdd-HHmmss>-<commit|prev>/`.
+
 Gradle must run on JDK 25+ (Loom 1.18); the mod still targets Java 21.
 
 | Layer | What it checks | Output |
