@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Serialises measured {@link BenchMetrics} segments (QuillCore on / off) to JSON + CSV.
@@ -20,9 +21,16 @@ public final class BenchReport {
 	private final List<List<Double>> fpsSeries = new ArrayList<>();
 	private final List<List<Double>> frameMsSeries = new ArrayList<>();
 	private String environment = "";
+	private Map<String, Double> gpuPassMs = Map.of();
 
 	public BenchReport environment(String env) {
 		this.environment = env == null ? "" : env;
+		return this;
+	}
+
+	/** Average GPU ms per pass (CSR timer queries); empty when nothing was timed. */
+	public BenchReport gpuPassMs(Map<String, Double> ms) {
+		this.gpuPassMs = ms == null ? Map.of() : ms;
 		return this;
 	}
 
@@ -109,6 +117,12 @@ public final class BenchReport {
 	public String toJson() {
 		StringBuilder sb = new StringBuilder("{\n");
 		sb.append("  \"environment\": ").append(str(environment)).append(",\n");
+		sb.append("  \"gpuPassMs\": {");
+		int n = 0;
+		for (Map.Entry<String, Double> e : gpuPassMs.entrySet()) {
+			sb.append(n++ == 0 ? "" : ", ").append(str(e.getKey())).append(": ").append(num(e.getValue()));
+		}
+		sb.append("},\n");
 		sb.append("  \"segments\": [\n");
 		for (int i = 0; i < segments.size(); i++) {
 			BenchMetrics m = segments.get(i);

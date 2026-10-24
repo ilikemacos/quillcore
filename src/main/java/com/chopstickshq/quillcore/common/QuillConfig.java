@@ -16,7 +16,7 @@ import java.nio.file.Path;
  * Every toggle here is wired to real behavior (or an "unavailable" backend status).
  */
 public final class QuillConfig {
-	public static final int CURRENT_VERSION = 5;
+	public static final int CURRENT_VERSION = 6;
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 	private static QuillConfig INSTANCE = new QuillConfig();
@@ -85,6 +85,11 @@ public final class QuillConfig {
 	public boolean fsrFrameGenEnabled = false;
 	/** Legacy / generic frame-gen flag; forced off, no working FG backend. */
 	public boolean frameGenEnabled = false;
+
+	/** Optional CSR Flux 2x upscale (renders the world at half resolution per axis). Off by default. See docs/csr.md. */
+	public boolean csrFlux = false;
+	/** Optional CSR Frame Gen (interpolated frames, adds about one frame of latency). Off by default. See docs/csr.md. */
+	public boolean csrFrameGen = false;
 
 	public boolean benchEnabled = false;
 
@@ -156,6 +161,10 @@ public final class QuillConfig {
 				upscaleBackendId = "fsr1";
 			}
 			configVersion = 5;
+		}
+		if (configVersion < 6) {
+			// v6 adds csrFlux / csrFrameGen; missing keys keep their off defaults.
+			configVersion = 6;
 		}
 		if (configVersion < CURRENT_VERSION) {
 			configVersion = CURRENT_VERSION;
@@ -235,6 +244,8 @@ public final class QuillConfig {
 				+ " fsrPreset=" + fsrQualityPreset
 				+ " fsrFG=" + fsrFrameGenEnabled
 				+ " frameGen=" + frameGenEnabled
+				+ " csrFlux=" + csrFlux
+				+ " csrFrameGen=" + csrFrameGen
 				+ " bench=" + benchEnabled;
 	}
 }

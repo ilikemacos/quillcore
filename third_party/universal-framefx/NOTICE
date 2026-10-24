@@ -1,0 +1,10 @@
+Universal-FrameFX — CSR model weights
+Licensed under the MIT License (see LICENSE in this directory; copyright as stated there).
+
+QuillCore ships two weight files taken unmodified from Universal-FrameFX:
+  src/main/resources/assets/quillcore/csr/csr_ai_x2.weights.json  (CSR Flux 2x upscaler, v1)
+  src/main/resources/assets/quillcore/csr/csr_ai_fg.weights.json  (CSR Frame Gen, v3)
+
+The GLSL inference passes in assets/quillcore/csr/glsl/ and the Java reference
+implementation are a new port derived from the Universal-FrameFX HLSL kernels
+(CsrAi.hlsl, CsrAiFg.hlsl, and the CSRAIFG_PackA/PackB/Compose kernels).
