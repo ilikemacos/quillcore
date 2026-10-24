@@ -9,6 +9,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.GoalSelector;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -21,6 +22,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(Mob.class)
 public abstract class MobServerAiThrottleMixin {
+	@Unique
+	private boolean quillcore$skipSelectors;
+	@Unique
+	private int quillcore$skips;
+	@Unique
+	private int quillcore$skipsEpoch;
+
+	@Unique
+	private int quillcore$consecutiveSkips() {
+		return quillcore$skipsEpoch == IdleAiThrottleState.epoch() ? quillcore$skips : 0;
+	}
+
 	@Inject(method = "serverAiStep", at = @At("HEAD"))
 	private void quillcore$beginThrottle(CallbackInfo ci) {
 		Mob self = (Mob) (Object) this;
@@ -28,10 +41,11 @@ public abstract class MobServerAiThrottleMixin {
 		if (self.level() instanceof ServerLevel) {
 			QuillConfig cfg = QuillConfig.get();
 			LivingEntity target = self.getTarget();
-			Player nearest = self.level().getNearestPlayer(self, cfg.idleAiThrottlePlayerRadiusBlocks);
-			double distSq = nearest == null
-					? Double.POSITIVE_INFINITY
-					: nearest.distanceToSqr(self);
+			double distSq = Double.POSITIVE_INFINITY;
+			if (cfg.masterEnabled && cfg.logicEnabled && cfg.idleAiThrottleEnabled) {
+				Player nearest = self.level().getNearestPlayer(self, cfg.idleAiThrottlePlayerRadiusBlocks);
+				if (nearest != null) distSq = nearest.distanceToSqr(self);
+			}
 			skip = IdleAiThrottle.shouldSkipGoalTick(
 					cfg.masterEnabled,
 					cfg.logicEnabled,
@@ -42,17 +56,17 @@ public abstract class MobServerAiThrottleMixin {
 					target != null && target.isAlive(),
 					self.isAlive(),
 					self.hurtTime,
-					IdleAiThrottleState.consecutiveSkips(self.getId())
+					quillcore$consecutiveSkips()
 			);
 		}
-		IdleAiThrottleState.beginTick(skip);
+		quillcore$skipSelectors = skip;
 	}
 
 	@Inject(method = "serverAiStep", at = @At("RETURN"))
 	private void quillcore$endThrottle(CallbackInfo ci) {
-		Mob self = (Mob) (Object) this;
-		boolean skipped = IdleAiThrottleState.shouldSkipSelectors();
-		IdleAiThrottleState.endTick(self.getId(), skipped);
+		quillcore$skips = IdleAiThrottle.nextConsecutiveSkips(quillcore$skipSelectors, quillcore$consecutiveSkips());
+		quillcore$skipsEpoch = IdleAiThrottleState.epoch();
+		quillcore$skipSelectors = false;
 	}
 
 	@Redirect(
@@ -60,7 +74,7 @@ public abstract class MobServerAiThrottleMixin {
 			at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/ai/goal/GoalSelector;tick()V")
 	)
 	private void quillcore$maybeSkipTick(GoalSelector selector) {
-		if (!IdleAiThrottleState.shouldSkipSelectors()) {
+		if (!quillcore$skipSelectors) {
 			selector.tick();
 		}
 	}
@@ -70,7 +84,7 @@ public abstract class MobServerAiThrottleMixin {
 			at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/ai/goal/GoalSelector;tickRunningGoals(Z)V")
 	)
 	private void quillcore$maybeSkipRunning(GoalSelector selector, boolean tickAllRunning) {
-		if (!IdleAiThrottleState.shouldSkipSelectors()) {
+		if (!quillcore$skipSelectors) {
 			selector.tickRunningGoals(tickAllRunning);
 		}
 	}
