@@ -87,6 +87,8 @@ public final class QuillConfig {
 	public boolean frameGenEnabled = false;
 
 	public boolean benchEnabled = false;
+	/** Bench-only: record synthetic section vertex footprint (vanilla vs compact) per bench segment. Never touches live rendering. */
+	public boolean vertexFootprintSampleEnabled = true;
 
 	private QuillConfig() {}
 
@@ -216,6 +218,7 @@ public final class QuillConfig {
 		}
 		// No working frame-gen backend, keep generic flag off. fsrFrameGenEnabled may be stored but is ignored.
 		frameGenEnabled = false;
+		// vertexFootprintSampleEnabled: boolean, nothing to clamp.
 	}
 
 	public String statusSummary() {
