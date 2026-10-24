@@ -22,6 +22,7 @@
 		"LevelEntityGetterAdapterAccessor",
 		"BlockBehaviourAccessor",
 		"BlockStateCollisionKindMixin",
+		"BrainFlatBehaviorsMixin",
 		"BlockCollisionsFastMixin",
 		"LevelEntitiesAccessor",
 		"EntityCollideSkipMixin"
