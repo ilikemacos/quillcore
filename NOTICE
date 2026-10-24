@@ -4,3 +4,8 @@ Copyright (c) QuillCore contributors
 This product includes AMD FidelityFX Super Resolution 1 (FSR1) algorithm
 implementations adapted for Minecraft. FSR1 © 2021 Advanced Micro Devices, Inc.
 Licensed under the MIT License — see third_party/amd-fsr1/.
+
+The shared block state neighbour table (memory/StateTable) follows the approach
+described in FerriteCore's public summary (github.com/malte0811/FerriteCore),
+The block state shape sharing (memory/ShapeInterner) follows the same summary.
+MIT License, Copyright (c) malte0811. No FerriteCore code is included.

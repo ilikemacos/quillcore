@@ -1,0 +1,13 @@
+{
+	"required": true,
+	"package": "com.chopstickshq.quillcore.memory.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"StateHolderMixin",
+		"BlockStateCacheMixin",
+		"BlockStateBaseShapesMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
