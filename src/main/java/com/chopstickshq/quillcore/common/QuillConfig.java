@@ -87,6 +87,11 @@ public final class QuillConfig {
 	public boolean frameGenEnabled = false;
 
 	public boolean benchEnabled = false;
+	/**
+	 * System RAM (GB) used to park chunk meshes evicted from VRAM. 0 = off. This is not extra VRAM;
+	 * it only lets evicted sections come back without a rebuild. See {@code MeshRamCache}.
+	 */
+	public double meshRamCacheGb = 0.0;
 
 	private QuillConfig() {}
 
@@ -181,6 +186,8 @@ public final class QuillConfig {
 		if (Double.isNaN(particleRenderCutoffBlocks) || particleRenderCutoffBlocks < 0) {
 			particleRenderCutoffBlocks = 64.0;
 		}
+		if (Double.isNaN(meshRamCacheGb) || meshRamCacheGb < 0) meshRamCacheGb = 0;
+		if (meshRamCacheGb > 16) meshRamCacheGb = 16;
 		itemMergeThrottleMaxSkipTicks = IdleAiThrottle.clamp(itemMergeThrottleMaxSkipTicks, 0, 10);
 		if (Double.isNaN(itemMergeThrottlePlayerRadiusBlocks) || itemMergeThrottlePlayerRadiusBlocks < 0) {
 			itemMergeThrottlePlayerRadiusBlocks = 32.0;
