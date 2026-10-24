@@ -18,11 +18,59 @@ repositories {
 
 loom {
 	splitEnvironmentSourceSets()
+}
+
+sourceSets {
+	gametest {
+		compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output + sourceSets.client.compileClasspath + sourceSets.client.output
+		runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output + sourceSets.client.runtimeClasspath + sourceSets.client.output
+	}
+}
+
+loom {
 
 	mods {
 		"quillcore" {
 			sourceSet sourceSets.main
 			sourceSet sourceSets.client
+		}
+		"quillcore-test" {
+			sourceSet sourceSets.gametest
+		}
+	}
+
+	// ---- QuillCore test engine (see docs/TESTING.md) ----
+	def reportDir = file("build/quill-test-report")
+	runs {
+		gametestOn {
+			server()
+			name "GameTest (QuillCore Logic on)"
+			source sourceSets.gametest
+			vmArg "-Dfabric-api.gametest"
+			vmArg "-Dfabric-api.gametest.report-file=${reportDir}/gametest-on.xml"
+			vmArg "-Dquillcore.test.logic=on"
+			runDir "build/run-gametest-on"
+			ideConfigGenerated false
+		}
+		gametestOff {
+			server()
+			name "GameTest (QuillCore Logic off)"
+			source sourceSets.gametest
+			vmArg "-Dfabric-api.gametest"
+			vmArg "-Dfabric-api.gametest.report-file=${reportDir}/gametest-off.xml"
+			vmArg "-Dquillcore.test.logic=off"
+			runDir "build/run-gametest-off"
+			ideConfigGenerated false
+		}
+		quillBench {
+			client()
+			name "QuillCore auto benchmark"
+			source sourceSets.gametest
+			vmArg "-Dquillcore.autobench=${project.findProperty('benchSeconds') ?: '30'}"
+			vmArg "-Dquillcore.autobench.out=${reportDir}"
+			vmArg "-Xmx4G"
+			runDir "build/run-bench"
+			ideConfigGenerated false
 		}
 	}
 }
@@ -74,6 +122,133 @@ jar {
 
 test {
 	useJUnitPlatform()
+	// Under quillTest, keep going so the summary can report every layer.
+	ignoreFailures = gradle.startParameter.taskNames.any { it.endsWith('quillTest') }
+}
+
+def quillReportDir = layout.buildDirectory.dir("quill-test-report")
+afterEvaluate {
+	['runGametestOn', 'runGametestOff', 'runQuillBench'].each { n ->
+		tasks.named(n) {
+			group = 'verification'
+			ignoreExitValue = true
+			doFirst { quillReportDir.get().asFile.mkdirs() }
+		}
+	}
+	tasks.named('runGametestOff') { mustRunAfter 'runGametestOn', 'test' }
+	tasks.named('runGametestOn') { mustRunAfter 'test' }
+	tasks.named('runQuillBench') { mustRunAfter 'runGametestOff' }
+}
+
+static Map countJUnit(Collection<File> files) {
+	int tests = 0, failed = 0, skipped = 0
+	List<Map> failures = []
+	def dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+	files.findAll { it.isFile() }.each { f ->
+		def doc = dbf.newDocumentBuilder().parse(f)
+		def cases = doc.getElementsByTagName("testcase")
+		for (int i = 0; i < cases.length; i++) {
+			def c = cases.item(i) as org.w3c.dom.Element
+			tests++
+			def bad = c.getElementsByTagName("failure").length > 0 ? c.getElementsByTagName("failure") : c.getElementsByTagName("error")
+			if (bad.length > 0) {
+				failed++
+				def e = bad.item(0) as org.w3c.dom.Element
+				def msg = e.getAttribute("message") ?: e.textContent
+				failures << [name: (c.getAttribute("classname") ? c.getAttribute("classname") + " › " : "") + c.getAttribute("name"),
+				             message: msg?.readLines()?.take(6)?.join("\n")]
+			} else if (c.getElementsByTagName("skipped").length > 0) {
+				skipped++
+			}
+		}
+	}
+	return [tests: tests, failed: failed, skipped: skipped, passed: tests - failed - skipped, failures: failures, found: files.any { it.isFile() }]
+}
+
+static String tryExec(List<String> cmd, File dir) {
+	try {
+		def p = new ProcessBuilder(cmd).directory(dir).redirectErrorStream(true).start()
+		def out = p.inputStream.text.trim()
+		return p.waitFor() == 0 && out ? out : null
+	} catch (Exception ignored) {
+		return null
+	}
+}
+
+tasks.register('quillTest') {
+	group = 'verification'
+	description = 'QuillCore test engine: JUnit + GameTest (Logic on/off) [+ client bench with -PwithBench]; writes build/quill-test-report/ (index.html dashboard, summary.md)'
+	dependsOn 'test', 'runGametestOn', 'runGametestOff'
+	if (project.hasProperty('withBench')) dependsOn 'runQuillBench'
+	def junitDir = layout.buildDirectory.dir("test-results/test")
+	def withBench = project.hasProperty('withBench')
+	def openReport = !project.hasProperty('noOpen')
+	def template = file("gradle/quill-test/dashboard.html")
+	def root = projectDir
+	def props = [mc: project.minecraft_version, loader: project.loader_version, fabricApi: project.fabric_api_version, version: project.version]
+	doLast {
+		def out = quillReportDir.get().asFile
+		out.mkdirs()
+		def layers = [
+				['Unit — JUnit 5 (pure logic)', countJUnit(junitDir.get().asFile.listFiles()?.findAll { it.name.endsWith('.xml') } ?: [])],
+				['GameTest — Logic ON (aggressive)', countJUnit([new File(out, 'gametest-on.xml')])],
+				['GameTest — Logic OFF (vanilla)', countJUnit([new File(out, 'gametest-off.xml')])],
+		]
+		def benchJson = new File(out, 'bench.json')
+		def bench = withBench && benchJson.isFile() ? new groovy.json.JsonSlurper().parse(benchJson) : null
+		boolean bad = false
+		def layerData = layers.collect { l ->
+			def r = l[1]
+			if (!r.found) { bad = true; return [name: l[0], status: 'not run', note: 'no JUnit XML report produced'] }
+			if (r.failed > 0 || r.tests == 0) bad = true
+			return [name: l[0], status: 'ran', tests: r.tests, passed: r.passed, failed: r.failed, skipped: r.skipped, failures: r.failures]
+		}
+		def benchOk = bench != null && bench.segments && !(bench.environment ?: '').startsWith('ERROR') && bench.segments.every { it.avgFps != null }
+		if (bench == null) {
+			layerData << [name: 'Client benchmark (ON vs OFF)', status: 'not run', note: withBench ? 'bench.json missing — benchmark did not complete' : 'pass -PwithBench (needs a real GPU)']
+			if (withBench) bad = true
+		} else {
+			layerData << [name: 'Client benchmark (ON vs OFF)', status: 'ran', tests: bench.segments.size(), passed: bench.segments.count { it.avgFps != null },
+			              failed: bench.segments.count { it.avgFps == null }, skipped: 0,
+			              failures: benchOk ? [] : [[name: 'autobench', message: bench.environment]]]
+			if (!benchOk) bad = true
+		}
+		def env = bench?.environment ?: ''
+		def gpu = (env =~ /gpu=([^;]*)/) ? (env =~ /gpu=([^;]*)/)[0][1] : 'not measured (bench not run)'
+		def gl = (env =~ /glVersion=([^;]*)/) ? (env =~ /glVersion=([^;]*)/)[0][1] : null
+		def meta = [generated: new Date().toString(),
+		            commit: tryExec(['git', 'rev-parse', '--short', 'HEAD'], root) ?: 'unknown',
+		            branch: tryExec(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], root) ?: 'unknown',
+		            'QuillCore': props.version, 'Minecraft': props.mc, 'Fabric Loader': props.loader, 'Fabric API': props.fabricApi,
+		            GPU: gpu, 'OpenGL': gl ?: '—',
+		            'GPU driver': tryExec(['nvidia-smi', '--query-gpu=name,driver_version', '--format=csv,noheader'], root) ?: (gl ?: '—'),
+		            OS: "${System.getProperty('os.name')} ${System.getProperty('os.version')}", 'Gradle JVM': System.getProperty('java.version'),
+		            'Bench settings': env ? env.replaceAll(/gpu=[^;]*;\s*glVersion=[^;]*;?\s*/, '') : '—']
+		def data = [meta: meta, layers: layerData, bench: bench, overall: bad ? (layerData.any { it.failed } ? 'fail' : 'partial') : 'pass',
+		            benchNote: withBench ? 'run requested but no data' : 'not requested']
+		def json = groovy.json.JsonOutput.toJson(data).replace('</', '<\\/')
+		def html = new File(out, 'index.html')
+		html.setText(template.getText('UTF-8').replace('/*__QUILL_DATA__*/null', json), 'UTF-8')
+
+		def sb = new StringBuilder("# QuillCore test report\n\n| Layer | Tests | Passed | Failed | Skipped |\n|---|---|---|---|---|\n")
+		layerData.each { l -> sb << (l.status == 'not run' ? "| ${l.name} | — | — | not run | — |\n" : "| ${l.name} | ${l.tests} | ${l.passed} | ${l.failed} | ${l.skipped} |\n") }
+		layerData.each { l -> l.failures?.each { sb << "\n- FAIL ${l.name}: ${it.name} — ${it.message}" } }
+		def csv = new File(out, 'bench.csv')
+		if (bench != null && csv.isFile()) {
+			def lines = csv.readLines().findAll { it }
+			sb << "\n\n## Client benchmark\n\n| " + lines[0].split(',', -1).join(' | ') + " |\n|" + ('---|' * lines[0].split(',', -1).size()) + "\n"
+			lines.drop(1).each { sb << "| " + it.split(',', -1).join(' | ') + " |\n" }
+		}
+		new File(out, 'summary.md').text = sb.toString()
+		println sb
+		println "Dashboard: ${html.toURI()}"
+		if (openReport && !System.getenv('CI')) {
+			def os = System.getProperty('os.name').toLowerCase()
+			def cmd = os.contains('win') ? ['cmd', '/c', 'start', '""', html.absolutePath] : os.contains('mac') ? ['open', html.absolutePath] : ['xdg-open', html.absolutePath]
+			try { new ProcessBuilder(cmd).start() } catch (Exception e) { println "Could not open browser: ${e.message}" }
+		}
+		if (bad) throw new GradleException("quillTest: failures or missing layers — see ${html}")
+	}
 }
 
 publishing {
