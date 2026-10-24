@@ -1,6 +1,7 @@
 {
 	"required": true,
 	"package": "com.chopstickshq.quillcore.logic.mixin",
+	"plugin": "com.chopstickshq.quillcore.logic.QuillMixinPlugin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
 		"MobServerAiThrottleMixin",
