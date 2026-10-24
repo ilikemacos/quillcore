@@ -16,7 +16,10 @@
 		"GlCommandEncoderMultiDrawMixin",
 		"LevelRendererRegionOffsetMixin",
 		"SectionBuffersSlabMixin",
-		"CompiledSectionMeshSlabMixin"
+		"CompiledSectionMeshSlabMixin",
+		"SectionBuffersRamCacheMixin",
+		"CompiledSectionMeshRamCacheMixin",
+		"LevelRendererRamCacheMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
