@@ -11,7 +11,8 @@
 		"fabric-gametest": [
 			"com.chopstickshq.quillcore.gametest.QuillLogicGameTests",
 			"com.chopstickshq.quillcore.gametest.QuillMemoryGameTests",
-			"com.chopstickshq.quillcore.gametest.QuillVanillaGameTests"
+			"com.chopstickshq.quillcore.gametest.QuillVanillaGameTests",
+			"com.chopstickshq.quillcore.gametest.QuillBlockEntityGameTests"
 		]
 	},
 	"mixins": ["quillcore-test.mixins.json"],

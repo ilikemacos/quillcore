@@ -13,7 +13,9 @@
 		"AcquirePoiNoneMixin",
 		"RedStoneWireBlockDirectionsMixin",
 		"PistonBaseBlockDirectionsMixin",
-		"PistonStructureResolverDirectionsMixin"
+		"PistonStructureResolverDirectionsMixin",
+		"FurnaceIdleMixin",
+		"CampfireIdleMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
