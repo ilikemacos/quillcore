@@ -172,8 +172,9 @@ public final class QuillAutoBench implements ClientModInitializer {
 		int step = compareStep;
 		if (step == 1) {
 			compareStats = QuillMeshStats.snapshot();
-			QuillCore.LOGGER.info("[quill-bench] region slabs: {}, solid draws {} -> {}", com.chopstickshq.quillcore.render.region.RegionSlabs.count(),
-					com.chopstickshq.quillcore.render.region.RegionDraws.lastIn(), com.chopstickshq.quillcore.render.region.RegionDraws.lastOut());
+			QuillCore.LOGGER.info("[quill-bench] region slabs: {}, solid draws {} -> {} gl calls ({} multi ranges)",
+					com.chopstickshq.quillcore.render.region.RegionSlabs.count(), com.chopstickshq.quillcore.render.region.RegionDraws.lastIn(),
+					com.chopstickshq.quillcore.render.region.RegionDraws.lastOut(), com.chopstickshq.quillcore.render.region.RegionDraws.lastRanges());
 		}
 		pendingShots++;
 		Screenshot.takeScreenshot(mc.getMainRenderTarget(), img -> {

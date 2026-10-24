@@ -13,6 +13,7 @@
 		"CompiledSectionMeshTagMixin",
 		"GpuBufferTagMixin",
 		"ChunkSectionsSplitDrawMixin",
+		"GlCommandEncoderMultiDrawMixin",
 		"LevelRendererRegionOffsetMixin",
 		"SectionBuffersSlabMixin",
 		"CompiledSectionMeshSlabMixin"
