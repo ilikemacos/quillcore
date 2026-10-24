@@ -7,7 +7,12 @@
 		"VillagerBrainThrottleMixin",
 		"ItemEntityMergeThrottleMixin",
 		"ExperienceOrbMergeThrottleMixin",
-		"PathNavigationThrottleMixin"
+		"PathNavigationThrottleMixin",
+		"PalettedContainerNoLockMixin",
+		"SecondaryPoiSensorMixin",
+		"RedStoneWireBlockDirectionsMixin",
+		"PistonBaseBlockDirectionsMixin",
+		"PistonStructureResolverDirectionsMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -8,7 +8,10 @@
 	"entrypoints": {
 		"main": ["com.chopstickshq.quillcore.gametest.QuillTestMode"],
 		"client": ["com.chopstickshq.quillcore.gametest.QuillAutoBench"],
-		"fabric-gametest": ["com.chopstickshq.quillcore.gametest.QuillLogicGameTests"]
+		"fabric-gametest": [
+			"com.chopstickshq.quillcore.gametest.QuillLogicGameTests",
+			"com.chopstickshq.quillcore.gametest.QuillVanillaGameTests"
+		]
 	},
 	"mixins": ["quillcore-test.mixins.json"],
 	"depends": {
