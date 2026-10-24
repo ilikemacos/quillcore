@@ -7,7 +7,7 @@
 #moj_import <minecraft:dynamictransforms.glsl>
 #moj_import <minecraft:projection.glsl>
 
-in ivec4 Position; // xyz: (p + 8) * 2048 - 32768, section-local; w: face 0..5 (unused here)
+in ivec4 Position; // xyz: (p + 8) * 2048 - 32768, section-local; w: face | slot << 3
 in vec4 Color;     // RGBA, normalized
 in ivec2 UV0;      // unsigned 16-bit in the low bits, uv * 65536
 in ivec2 UV2;      // lightmap coords, as vanilla
@@ -26,7 +26,10 @@ vec4 quill_lightmap(sampler2D lightMap, ivec2 uv) {
 
 void main() {
     vec3 local = (vec3(Position.xyz) + 32768.0) / 2048.0 - 8.0;
-    vec3 pos = local + ModelOffset;
+    // ModelOffset is the region origin minus the camera; the slot says which section of the 8x4x8 region this is
+    int slot = (Position.w >> 3) & 0xFF;
+    vec3 section = vec3(slot & 7, slot >> 6, (slot >> 3) & 7) * 16.0;
+    vec3 pos = local + section + ModelOffset;
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
     sphericalVertexDistance = fog_spherical_distance(pos);
