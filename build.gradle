@@ -220,10 +220,10 @@ tasks.register('quillTest') {
 		            commit: tryExec(['git', 'rev-parse', '--short', 'HEAD'], root) ?: 'unknown',
 		            branch: tryExec(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], root) ?: 'unknown',
 		            'QuillCore': props.version, 'Minecraft': props.mc, 'Fabric Loader': props.loader, 'Fabric API': props.fabricApi,
-		            GPU: gpu, 'OpenGL': gl ?: '—',
+		            GPU: gpu, 'Bench resolution': ((env =~ /resolution=([^;]*)/) ? (env =~ /resolution=([^;]*)/)[0][1] + ((env.contains('fullscreen=true')) ? ' (fullscreen)' : ' (windowed)') : '—'), 'OpenGL': gl ?: '—',
 		            'GPU driver': tryExec(['nvidia-smi', '--query-gpu=name,driver_version', '--format=csv,noheader'], root) ?: (gl ?: '—'),
 		            OS: "${System.getProperty('os.name')} ${System.getProperty('os.version')}", 'Gradle JVM': System.getProperty('java.version'),
-		            'Bench settings': env ? env.replaceAll(/gpu=[^;]*;\s*glVersion=[^;]*;?\s*/, '') : '—']
+		            'Bench settings': env ? env.replaceAll(/gpu=[^;]*;\s*glVersion=[^;]*;?\s*/, '').replaceAll(/resolution=[^;]*;\s*/, '') : '—']
 		def data = [meta: meta, layers: layerData, bench: bench, overall: bad ? (layerData.any { it.failed } ? 'fail' : 'partial') : 'pass',
 		            benchNote: withBench ? 'run requested but no data' : 'not requested']
 		def json = groovy.json.JsonOutput.toJson(data).replace('</', '<\\/')
@@ -244,8 +244,27 @@ tasks.register('quillTest') {
 		println "Dashboard: ${html.toURI()}"
 		if (openReport && !System.getenv('CI')) {
 			def os = System.getProperty('os.name').toLowerCase()
-			def cmd = os.contains('win') ? ['cmd', '/c', 'start', '""', html.absolutePath] : os.contains('mac') ? ['open', html.absolutePath] : ['xdg-open', html.absolutePath]
-			try { new ProcessBuilder(cmd).start() } catch (Exception e) { println "Could not open browser: ${e.message}" }
+			def url = html.toURI().toString()
+			def candidates = []
+			if (os.contains('win')) {
+				def pf = [System.getenv('ProgramFiles(x86)'), System.getenv('ProgramFiles'), System.getenv('LOCALAPPDATA')].findAll { it }
+				pf.each { candidates << new File(it, 'Microsoft/Edge/Application/msedge.exe'); candidates << new File(it, 'Google/Chrome/Application/chrome.exe') }
+			} else if (!os.contains('mac')) {
+				['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/microsoft-edge'].each { candidates << new File(it) }
+			}
+			def browser = candidates.find { it.isFile() }
+			try {
+				if (browser) {
+					// Separate profile so the window really opens fullscreen even if the browser is already running.
+					def profile = new File(out, '.browser-profile')
+					new ProcessBuilder([browser.absolutePath, '--start-fullscreen', '--new-window', '--no-first-run', "--user-data-dir=${profile.absolutePath}".toString(), url]).start()
+					println "Opened dashboard fullscreen in ${browser.name} (Esc or the button exits fullscreen)"
+				} else {
+					def cmd = os.contains('win') ? ['cmd', '/c', 'start', '""', html.absolutePath] : os.contains('mac') ? ['open', html.absolutePath] : ['xdg-open', html.absolutePath]
+					new ProcessBuilder(cmd).start()
+					println "Opened dashboard in default browser — press F11 or the Fullscreen button"
+				}
+			} catch (Exception e) { println "Could not open browser: ${e.message}" }
 		}
 		if (bad) throw new GradleException("quillTest: failures or missing layers — see ${html}")
 	}

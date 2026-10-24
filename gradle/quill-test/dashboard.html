@@ -9,7 +9,9 @@
 :root{--bg:#f6f7f9;--card:#fff;--fg:#14171c;--mute:#5d6673;--line:#e2e5ea;--ok:#1a7f4b;--bad:#c62f2f;--na:#8a93a0;--on:#2f6fdf;--off:#e07b16}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#181c22;--fg:#e8ebef;--mute:#98a2ae;--line:#2a3039;--ok:#3fbf7f;--bad:#ff6b6b;--na:#6b7480;--on:#6ea0ff;--off:#ffa24a}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-main{max-width:1180px;margin:0 auto;padding:28px 20px 60px}h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:28px 0 10px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+main{width:100%;min-height:100vh;margin:0;padding:clamp(14px,2vw,32px) clamp(14px,2.5vw,40px) 40px}
+#fs{position:fixed;top:14px;right:16px;z-index:5;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}#fs:hover{border-color:var(--on)}
+svg{display:block;height:auto}h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:28px 0 10px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
 .sub{color:var(--mute)}.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
 .card .k{color:var(--mute);font-size:12px}.card .v{font-size:28px;font-weight:650;margin:4px 0}
@@ -22,7 +24,7 @@ svg text{fill:var(--mute);font-size:11px}.legend span{display:inline-flex;align-
 .empty{color:var(--mute);padding:26px;text-align:center;border:1px dashed var(--line);border-radius:10px}
 </style>
 </head>
-<body><main id="app"></main>
+<body><button id="fs" title="Toggle fullscreen (F / Esc)">⛶ Fullscreen</button><main id="app"></main>
 <script>
 const D = /*__QUILL_DATA__*/null;
 const $ = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -84,7 +86,7 @@ if (!B || !B.segments || !B.segments.length) {
   const segs = B.segments, S = B.summary || {};
   const col = (s, k) => ({name: `${s.label.toUpperCase()} #${s.segment + 1}`, color: s.label === 'on' ? 'var(--on)' : 'var(--off)', dash: k % 2 ? '' : '', pts: s[k] || []});
   const byLabel = (k) => segs.map((s, i) => ({...col(s, k), dash: segs.slice(0, i).filter(x => x.label === s.label).length ? '5 3' : ''}));
-  const charts = $('<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(460px,1fr))"></div>');
+  const charts = $('<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))"></div>');
   charts.append($(lineChart('FPS over time (per second)', 'seconds', byLabel('fpsPerSecond'))));
   charts.append($(lineChart('Frame time (ms, bucket max — spikes kept)', 'samples', byLabel('frameTimeMsSeries'))));
   charts.append($(barChart('FPS — mean of segments', [
@@ -103,5 +105,10 @@ app.append($('<h2>Run metadata</h2>'));
 const rows = Object.entries(m).filter(([k]) => k !== 'generated').map(([k, v]) => `<tr><td class="sub">${esc(k)}</td><td><code>${esc(v)}</code></td></tr>`).join('');
 app.append($(`<div class="card"><table>${rows}</table></div>`));
 app.append($('<p class="sub" style="margin-top:20px">Only measured data is shown. Layers that did not run are marked “not run”. Follows your OS light/dark setting (prefers-color-scheme).</p>'));
+const fsBtn = document.getElementById('fs');
+const toggleFs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { fsBtn.textContent = 'Press F11 for fullscreen'; });
+fsBtn.onclick = toggleFs;
+document.addEventListener('keydown', e => { if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) toggleFs(); });
+document.addEventListener('fullscreenchange', () => { fsBtn.textContent = document.fullscreenElement ? '✕ Exit fullscreen (Esc)' : '⛶ Fullscreen'; });
 </script>
 </body></html>

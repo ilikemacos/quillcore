@@ -59,6 +59,13 @@ public final class QuillAutoBench implements ClientModInitializer {
 			mc.options.renderDistance().set(12);
 			mc.options.simulationDistance().set(8);
 			mc.options.pauseOnLostFocus = false;
+			// AFK limit would drop the game to 30 fps after a minute without input and skew segments.
+			mc.options.inactivityFpsLimit().set(net.minecraft.client.InactivityFpsLimit.MINIMIZED);
+			if (!Boolean.getBoolean("quillcore.autobench.windowed")) {
+				mc.options.fullscreen().set(true);
+				if (!mc.getWindow().isFullscreen()) mc.getWindow().toggleFullScreen();
+			}
+			mc.options.save();
 			LevelSettings settings = new LevelSettings("QuillBench", GameType.CREATIVE, false, Difficulty.NORMAL, true,
 					new GameRules(FeatureFlags.DEFAULT_FLAGS), WorldDataConfiguration.DEFAULT);
 			mc.createWorldOpenFlows().createFreshLevel("quillbench-" + System.currentTimeMillis(), settings,
@@ -104,7 +111,8 @@ public final class QuillAutoBench implements ClientModInitializer {
 		gpu = gpu + "; glVersion=" + glVersion;
 		report.environment((error == null ? "" : "ERROR " + error + "; ") + "gpu=" + gpu + "; os="
 				+ System.getProperty("os.name") + "; java=" + System.getProperty("java.version")
-				+ "; segmentSeconds=" + segTicks / 20 + "; seed=20261023; renderDistance=12; vsync=off; cap=260");
+				+ "; resolution=" + mc.getWindow().getWidth() + "x" + mc.getWindow().getHeight()
+				+ "; fullscreen=" + mc.getWindow().isFullscreen() + "; segmentSeconds=" + segTicks / 20 + "; seed=20261023; renderDistance=12; vsync=off; cap=260; inactivityFpsLimit=minimized");
 		try {
 			Path out = Path.of(System.getProperty("quillcore.autobench.out", "quill-test-report"));
 			report.write(out);
