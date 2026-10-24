@@ -1,5 +1,7 @@
 package com.chopstickshq.quillcore.logic.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.chopstickshq.quillcore.logic.HardColliderCount;
 import net.minecraft.util.AbortableIterationConsumer;
 import net.minecraft.world.entity.Entity;
@@ -11,7 +13,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.List;
 
@@ -23,11 +24,11 @@ import java.util.List;
  */
 @Mixin(Entity.class)
 public abstract class EntityCollideSkipMixin {
-	@Redirect(method = "collide", at = @At(value = "INVOKE",
+	@WrapOperation(method = "collide", at = @At(value = "INVOKE",
 			target = "Lnet/minecraft/world/level/Level;getEntityCollisions(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;"))
-	private List<VoxelShape> quillcore$entityCollisions(Level level, Entity self, AABB box) {
+	private List<VoxelShape> quillcore$entityCollisions(Level level, Entity self, AABB box, Operation<List<VoxelShape>> original) {
 		if (box.getSize() >= 1.0E-7 && !quillcore$anyCollider(level, box.inflate(1.0E-7))) return List.of();
-		return level.getEntityCollisions(self, box);
+		return original.call(level, self, box);
 	}
 
 	@Unique
