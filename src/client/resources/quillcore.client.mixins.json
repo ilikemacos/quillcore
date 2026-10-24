@@ -8,7 +8,10 @@
 		"ParticleRenderCutoffMixin",
 		"CloudDistanceCapMixin",
 		"WeatherRadiusCapMixin",
-		"GameRendererFsrMixin"
+		"GameRendererFsrMixin",
+		"SectionBuffersRamCacheMixin",
+		"CompiledSectionMeshRamCacheMixin",
+		"LevelRendererRamCacheMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
