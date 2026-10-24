@@ -36,11 +36,12 @@ public abstract class SectionCompilerCompactMixin {
 		if (mesh == null) return;
 		MeshData.DrawState state = mesh.drawState();
 		boolean quill = false;
+		int[] groups = new int[6];
 		if (QuillConfig.get().compactMeshActive() && state.format() == DefaultVertexFormat.BLOCK && state.mode() == VertexFormat.Mode.QUADS && mesh.indexBuffer() == null) {
 			ByteBuffer buf = mesh.vertexBuffer().order(ByteOrder.nativeOrder());
-			quill = QuillSectionTranscoder.transcodeInPlace(buf, state.vertexCount(), RegionPos.slot(pos.x(), pos.y(), pos.z()));
+			quill = QuillSectionTranscoder.transcodeGrouped(buf, state.vertexCount(), RegionPos.slot(pos.x(), pos.y(), pos.z()), groups);
 		}
-		if (quill) results.renderedLayers.put(ChunkSectionLayer.SOLID, new QuillMeshData(mesh));
+		if (quill) results.renderedLayers.put(ChunkSectionLayer.SOLID, new QuillMeshData(mesh, groups));
 		QuillMeshStats.recordSolid(state.vertexCount(), quill);
 	}
 }

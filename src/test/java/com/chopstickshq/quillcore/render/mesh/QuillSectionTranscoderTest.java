@@ -117,4 +117,41 @@ class QuillSectionTranscoderTest {
 		assertEquals(1, s.quillSections());
 		assertEquals(1, s.fallbackSections());
 	}
+
+	/** One up quad, then one down quad (same square, reversed winding), then another up quad. */
+	private static ByteBuffer upDownUp() {
+		ByteBuffer b = ByteBuffer.allocateDirect(12 * S).order(ByteOrder.nativeOrder());
+		ByteBuffer up = upQuad(2);
+		for (int i = 0; i < 4; i++) {
+			b.put(i * S, up, i * S, S);
+			b.put((8 + i) * S, up, (4 + i) * S, S);
+		}
+		putBlock(b, 4, 3, 2, 0, 0xFF000000, 0.25f, 0.5f, 240, 48, 0, -127, 0);
+		putBlock(b, 5, 4, 2, 0, 0xFF000000, 0.3125f, 0.5f, 240, 48, 0, -127, 0);
+		putBlock(b, 6, 4, 2, 1, 0xFF000000, 0.3125f, 0.5625f, 240, 48, 0, -127, 0);
+		putBlock(b, 7, 3, 2, 1, 0xFF000000, 0.25f, 0.5625f, 240, 48, 0, -127, 0);
+		return b;
+	}
+
+	@Test
+	void groupedPutsQuadsInFaceOrder() {
+		ByteBuffer b = upDownUp();
+		int[] groups = new int[6];
+		assertTrue(QuillSectionTranscoder.transcodeGrouped(b, 12, 9, groups));
+		assertArrayEquals(new int[] {0, 0, 2, 1, 0, 0}, groups);
+		int[] faces = new int[3];
+		for (int q = 0; q < 3; q++) faces[q] = QuillCompactVertex.faceOf(b.getShort(q * 4 * QuillCompactVertex.BYTES + 6));
+		assertArrayEquals(new int[] {2, 2, 3}, faces);
+	}
+
+	@Test
+	void backFaceIsGroupedBySideKeepingItsNormal() {
+		ByteBuffer b = upQuad(1);
+		ByteBuffer flipped = ByteBuffer.allocateDirect(4 * S).order(ByteOrder.nativeOrder());
+		for (int i = 0; i < 4; i++) flipped.put(i * S, b, (3 - i) * S, S);
+		int[] groups = new int[6];
+		assertTrue(QuillSectionTranscoder.transcodeGrouped(flipped, 4, 0, groups));
+		assertArrayEquals(new int[] {0, 0, 0, 1, 0, 0}, groups);
+		assertEquals(2, QuillCompactVertex.faceOf(flipped.getShort(6)));
+	}
 }

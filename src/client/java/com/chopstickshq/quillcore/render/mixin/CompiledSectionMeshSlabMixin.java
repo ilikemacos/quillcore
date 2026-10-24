@@ -1,5 +1,8 @@
 package com.chopstickshq.quillcore.render.mixin;
 
+import com.chopstickshq.quillcore.render.compact.QuillMeshData;
+import com.chopstickshq.quillcore.render.prep.DrawCached;
+
 import com.chopstickshq.quillcore.render.compact.QuillTerrainPipeline;
 import com.chopstickshq.quillcore.render.region.RegionSlabs;
 import com.chopstickshq.quillcore.render.region.SlabBacked;
@@ -39,6 +42,7 @@ public abstract class CompiledSectionMeshSlabMixin {
 		RegionSlabs.Range r = RegionSlabs.upload(SectionPos.x(node), SectionPos.y(node), SectionPos.z(node), mesh.vertexBuffer());
 		SectionBuffers b = new SectionBuffers(null, null, mesh.drawState().indexCount(), mesh.drawState().indexType());
 		((SlabBacked) (Object) b).quillcore$setRange(r);
+		if (mesh instanceof QuillMeshData q) ((DrawCached) (Object) b).quillcore$setFaceGroups(q.faceGroups());
 		buffers.put(layer, b);
 		ci.cancel();
 	}
