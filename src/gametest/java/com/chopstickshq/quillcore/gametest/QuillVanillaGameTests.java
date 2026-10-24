@@ -318,6 +318,37 @@ public class QuillVanillaGameTests {
 		h.succeed();
 	}
 
+	@GameTest(maxTicks = 120)
+	public void brainWalkMatchesVanilla(GameTestHelper h) {
+		for (int x = 0; x < 6; x++) for (int z = 0; z < 6; z++) h.setBlock(x, 0, z, Blocks.STONE.defaultBlockState());
+		List<Villager> vs = new java.util.ArrayList<>();
+		vs.add(h.spawn(EntityType.VILLAGER, new Vec3(1.5, 1, 1.5)));
+		vs.add(h.spawn(EntityType.VILLAGER, new Vec3(3.5, 1, 3.5)));
+		Villager baby = h.spawn(EntityType.VILLAGER, new Vec3(4.5, 1, 1.5));
+		baby.setAge(-24000);
+		vs.add(baby);
+		h.onEachTick(() -> {
+			for (Villager v : vs) {
+				List<?> fast = v.getBrain().getRunningBehaviors();
+				com.chopstickshq.quillcore.logic.BrainLoops.forceVanilla = true;
+				List<?> slow;
+				try {
+					slow = v.getBrain().getRunningBehaviors();
+				} finally {
+					com.chopstickshq.quillcore.logic.BrainLoops.forceVanilla = false;
+				}
+				if (!fast.equals(slow)) h.fail(msg("running " + fast + " vanilla " + slow));
+			}
+		});
+		h.runAtTickTime(50, () -> {
+			// Adding behaviours later must show up in the walk, in vanilla's order.
+			BehaviorControl<? super Villager> extra = net.minecraft.world.entity.ai.behavior.InteractWithDoor.create();
+			vs.get(0).getBrain().addActivity(net.minecraft.world.entity.schedule.Activity.IDLE,
+					com.google.common.collect.ImmutableList.of(com.mojang.datafixers.util.Pair.of(0, extra)));
+		});
+		h.runAtTickTime(110, h::succeed);
+	}
+
 	@GameTest(maxTicks = 20)
 	public void blockCollisionsMatchVanilla(GameTestHelper h) {
 		BlockState[] mix = {Blocks.AIR.defaultBlockState(), Blocks.AIR.defaultBlockState(), Blocks.STONE.defaultBlockState(), Blocks.STONE_SLAB.defaultBlockState(),
