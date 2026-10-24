@@ -20,6 +20,7 @@ public final class QuillMixinPlugin implements IMixinConfigPlugin {
 			"EntityCollideSkipMixin",
 			"EntitySectionCollidersMixin",
 			"LivingEntityPushWalkMixin",
+			"MobPickupScanSkipMixin",
 			"BlockCollisionsFastMixin",
 			"PistonBaseBlockDirectionsMixin",
 			"PistonStructureResolverDirectionsMixin",
