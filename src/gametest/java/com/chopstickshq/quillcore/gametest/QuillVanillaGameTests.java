@@ -464,4 +464,63 @@ public class QuillVanillaGameTests {
 			h.succeed();
 		});
 	}
+
+	private static net.minecraft.world.level.entity.EntitySectionStorage<Entity> quillSections(GameTestHelper h) {
+		var getter = ((com.chopstickshq.quillcore.logic.mixin.LevelEntitiesAccessor) h.getLevel()).quillcore$entities();
+		@SuppressWarnings("unchecked")
+		var st = (net.minecraft.world.level.entity.EntitySectionStorage<Entity>)
+				((com.chopstickshq.quillcore.logic.mixin.LevelEntityGetterAdapterAccessor) getter).quillcore$sections();
+		return st;
+	}
+
+	/** Every section around the test must have an item count equal to the items it really holds. */
+	private static void checkItemCounts(GameTestHelper h, BlockPos o, String when) {
+		var st = quillSections(h);
+		int sx = o.getX() >> 4, sy = o.getY() >> 4, sz = o.getZ() >> 4;
+		for (int x = sx - 2; x <= sx + 3; x++) for (int y = sy - 2; y <= sy + 2; y++) for (int z = sz - 2; z <= sz + 2; z++) {
+			var sec = st.getSection(net.minecraft.core.SectionPos.asLong(x, y, z));
+			if (sec == null) continue;
+			long real = sec.getEntities().filter(e -> e instanceof net.minecraft.world.entity.item.ItemEntity).count();
+			int counted = ((com.chopstickshq.quillcore.logic.ItemCount) sec).quillcore$items();
+			if (counted != real) h.fail(msg(when + ": section " + x + "," + y + "," + z + " counts " + counted + " holds " + real));
+		}
+	}
+
+	@GameTest(maxTicks = 80)
+	public void itemCountFollowsItems(GameTestHelper h) {
+		BlockPos o = h.absolutePos(BlockPos.ZERO);
+		double border = ((o.getX() >> 4) + 1) << 4;
+		double y = o.getY() + 2, z = o.getZ() + 1.5;
+		var item = new net.minecraft.world.entity.item.ItemEntity(h.getLevel(), border - 6, y, z, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_SWORD));
+		item.setNoGravity(true);
+		item.setDeltaMovement(Vec3.ZERO);
+		item.setNoPickUpDelay();
+		h.getLevel().addFreshEntity(item);
+		var zombie = new net.minecraft.world.entity.monster.Zombie(h.getLevel());
+		zombie.setPos(border + 1.5, y, z);
+		zombie.setNoAi(true);
+		zombie.setNoGravity(true);
+		zombie.setCanPickUpLoot(true);
+		zombie.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.LEATHER_HELMET));
+		h.getLevel().addFreshEntity(zombie);
+		checkItemCounts(h, o, "after add");
+		h.runAtTickTime(10, () -> {
+			if (zombie.getMainHandItem().isEmpty() == false) h.fail(msg("picked up from the far section"));
+			checkItemCounts(h, o, "before move");
+			item.setPos(border + 1.2, y, z); // crosses into the zombie's section
+			checkItemCounts(h, o, "after move");
+		});
+		h.runAtTickTime(30, () -> {
+			if (zombie.getMainHandItem().isEmpty()) h.fail(msg("zombie did not pick up the moved item"));
+			checkItemCounts(h, o, "after pickup");
+			var second = new net.minecraft.world.entity.item.ItemEntity(h.getLevel(), border - 3, y, z, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STONE));
+			second.setNoGravity(true);
+			h.getLevel().addFreshEntity(second);
+			checkItemCounts(h, o, "after second add");
+			second.discard();
+			checkItemCounts(h, o, "after discard");
+			zombie.discard();
+			h.succeed();
+		});
+	}
 }

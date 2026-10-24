@@ -26,6 +26,8 @@
 		"BrainFlatBehaviorsMixin",
 		"NearestLivingSensorSortMixin",
     "LivingEntityPushWalkMixin",
+    "EntitySectionItemCountMixin",
+    "MobPickupScanSkipMixin",
 		"BlockCollisionsFastMixin",
 		"LevelEntitiesAccessor",
 		"EntityCollideSkipMixin"
