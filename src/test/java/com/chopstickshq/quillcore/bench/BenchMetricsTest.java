@@ -40,5 +40,6 @@ class BenchMetricsTest {
 		BenchHarness.stop();
 		assertTrue(m.frameTimeP50Ms <= m.frameTimeP99Ms);
 		assertTrue(m.pct1LowFps <= m.avgFps);
+		assertTrue(m.pct01LowFps <= m.pct1LowFps);
 	}
 }
