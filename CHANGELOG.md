@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Optional CSR add-on, off by default** (see `docs/csr.md`):
+  - `csrFlux`: render the world at half width/height, upscale 2x with the CSR Flux network (pure GLSL 330 port; HUD native). Mutually exclusive with FSR1.
+  - `csrFrameGen`: one interpolated frame between each pair of real frames (CSR Frame Gen netA/netB + a simplified flow estimator). Adds up to ~one real frame of latency; logged, plus an on-screen note. FPS counter unchanged.
+  - Fail-safe: missing/invalid weights, missing GL features, shader/FBO/GL errors → one warning, feature off, vanilla render.
+  - Model weights from Universal-FrameFX (MIT) in `assets/quillcore/csr/`; license in `third_party/universal-framefx/`.
+  - Unit tests: weights loader, CPU reference Flux network, config defaults, fail-safe, pacing, cost counts.
+
+### Changed
+- Config schema version **6** (`csrFlux`, `csrFrameGen`, default `false`).
+
+### Known limits
+- GLSL not yet compiled/run on a GPU; no GameTests/client run for CSR.
+
 ## 0.4.0, 2026-10-22
 
 ### Added
@@ -21,7 +37,7 @@
 - **Sodium:** may not honor vanilla main-RT resize, FSR1 can be limited/disabled with Sodium; log warns.
 - FSR2/FSR3/XeSS/frame gen remain unavailable (no fabricated claims).
 - No fabricated FPS benches.
-- CSR permanently excluded.
+- CSR not included in 0.4.0; it now exists as an optional, off-by-default add-on (see Unreleased, `docs/csr.md`).
 
 ### Not shipped
 - FSR2 temporal upscale, FSR3 frame generation, XeSS, in-process FrameFX.

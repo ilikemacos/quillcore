@@ -9,7 +9,8 @@
 		"CloudDistanceCapMixin",
 		"WeatherRadiusCapMixin",
 		"GameRendererFsrMixin",
-		"GameRendererCsrMixin"
+		"GameRendererCsrMixin",
+		"MinecraftCsrFgMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -25,7 +25,7 @@ QuillCore is an **independent implementation**. Quill Render is being built as i
 | Bench tick/frame sampling | Implemented (no fabricated Sodium numbers) |
 | FrameFX external launcher | Implemented (Windows probe/launch only; not in-process) |
 | FSR1 spatial (EASU+RCAS) | **Implemented**, main-RT scale + AMD MIT shaders |
-| CSR | Permanently excluded |
+| CSR Flux / CSR Frame Gen | Optional add-on, **off by default** (`csrFlux`, `csrFrameGen`), see [docs/csr.md](docs/csr.md). Frame Gen adds ~1 frame latency; GLSL unverified on GPU here. |
 
 ## Supported versions
 
