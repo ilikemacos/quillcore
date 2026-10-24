@@ -370,6 +370,107 @@ public class QuillVanillaGameTests {
 		});
 	}
 
+	/** A scripted child: what it returns and when it stops come from a shared seeded Random, and every call is logged. */
+	private static final class ScriptedChild implements net.minecraft.world.entity.ai.behavior.BehaviorControl<net.minecraft.world.entity.LivingEntity> {
+		final int id;
+		final java.util.Random r;
+		final StringBuilder log;
+		ScriptedChild[] all;
+		net.minecraft.world.entity.ai.behavior.Behavior.Status status = net.minecraft.world.entity.ai.behavior.Behavior.Status.STOPPED;
+
+		ScriptedChild(int id, java.util.Random r, StringBuilder log) {
+			this.id = id;
+			this.r = r;
+			this.log = log;
+		}
+
+		@Override
+		public net.minecraft.world.entity.ai.behavior.Behavior.Status getStatus() {
+			return status;
+		}
+
+		@Override
+		public boolean tryStart(net.minecraft.server.level.ServerLevel l, net.minecraft.world.entity.LivingEntity e, long t) {
+			boolean ok = r.nextInt(3) != 0;
+			log.append('s').append(id).append(ok ? '+' : '-');
+			if (ok) status = net.minecraft.world.entity.ai.behavior.Behavior.Status.RUNNING;
+			return ok;
+		}
+
+		@Override
+		public void tickOrStop(net.minecraft.server.level.ServerLevel l, net.minecraft.world.entity.LivingEntity e, long t) {
+			log.append('t').append(id);
+			int k = r.nextInt(6);
+			if (k == 0) doStop(l, e, t);
+			// Sometimes a child flips a sibling, so the status has to be read just before each child is visited.
+			if (k == 1) all[r.nextInt(all.length)].status = net.minecraft.world.entity.ai.behavior.Behavior.Status.STOPPED;
+			if (k == 2) all[r.nextInt(all.length)].status = net.minecraft.world.entity.ai.behavior.Behavior.Status.RUNNING;
+		}
+
+		@Override
+		public void doStop(net.minecraft.server.level.ServerLevel l, net.minecraft.world.entity.LivingEntity e, long t) {
+			log.append('x').append(id);
+			status = net.minecraft.world.entity.ai.behavior.Behavior.Status.STOPPED;
+		}
+
+		@Override
+		public String debugString() {
+			return "c" + id;
+		}
+	}
+
+	private static String gateScript(GameTestHelper h, net.minecraft.world.entity.LivingEntity e, net.minecraft.world.entity.ai.behavior.GateBehavior.RunningPolicy policy, long seed) {
+		java.util.Random r = new java.util.Random(seed);
+		StringBuilder log = new StringBuilder();
+		ScriptedChild[] kids = new ScriptedChild[6];
+		List<com.mojang.datafixers.util.Pair<? extends net.minecraft.world.entity.ai.behavior.BehaviorControl<? super net.minecraft.world.entity.LivingEntity>, Integer>> list = new java.util.ArrayList<>();
+		for (int i = 0; i < kids.length; i++) {
+			kids[i] = new ScriptedChild(i, r, log);
+			list.add(com.mojang.datafixers.util.Pair.of(kids[i], 1));
+		}
+		for (ScriptedChild k : kids) k.all = kids;
+		var gate = new net.minecraft.world.entity.ai.behavior.GateBehavior<net.minecraft.world.entity.LivingEntity>(java.util.Map.of(),
+				java.util.Set.of(MemoryModuleType.LOOK_TARGET), net.minecraft.world.entity.ai.behavior.GateBehavior.OrderPolicy.ORDERED, policy, list);
+		for (int step = 0; step < 400; step++) {
+			if (gate.getStatus() == net.minecraft.world.entity.ai.behavior.Behavior.Status.STOPPED) {
+				log.append(gate.tryStart(h.getLevel(), e, step) ? "S" : "F");
+			} else if (r.nextInt(25) == 0) {
+				log.append('X');
+				gate.doStop(h.getLevel(), e, step);
+			} else {
+				log.append('T');
+				gate.tickOrStop(h.getLevel(), e, step);
+			}
+			log.append(gate.getStatus().ordinal()).append('|');
+		}
+		return log.toString();
+	}
+
+	@GameTest(maxTicks = 20)
+	public void gateLoopsMatchVanilla(GameTestHelper h) {
+		Cow c = h.spawn(EntityType.COW, new Vec3(1.5, 1, 1.5));
+		c.setNoAi(true);
+		for (var policy : net.minecraft.world.entity.ai.behavior.GateBehavior.RunningPolicy.values()) {
+			for (long seed = 1; seed <= 20; seed++) {
+				String fast = gateScript(h, c, policy, seed);
+				String slow;
+				com.chopstickshq.quillcore.logic.GateLoops.forceVanilla = true;
+				try {
+					slow = gateScript(h, c, policy, seed);
+				} finally {
+					com.chopstickshq.quillcore.logic.GateLoops.forceVanilla = false;
+				}
+				if (!fast.equals(slow)) {
+					int i = 0;
+					while (i < Math.min(fast.length(), slow.length()) && fast.charAt(i) == slow.charAt(i)) i++;
+					h.fail(msg("gate " + policy + " seed " + seed + " differs at " + i + ": " + fast.substring(Math.max(0, i - 30), Math.min(fast.length(), i + 20))
+							+ " vs " + slow.substring(Math.max(0, i - 30), Math.min(slow.length(), i + 20))));
+				}
+			}
+		}
+		h.succeed();
+	}
+
 	@GameTest(maxTicks = 20)
 	public void blockCollisionsMatchVanilla(GameTestHelper h) {
 		BlockState[] mix = {Blocks.AIR.defaultBlockState(), Blocks.AIR.defaultBlockState(), Blocks.STONE.defaultBlockState(), Blocks.STONE_SLAB.defaultBlockState(),
