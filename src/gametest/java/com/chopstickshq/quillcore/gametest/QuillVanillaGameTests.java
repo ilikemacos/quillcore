@@ -16,6 +16,12 @@ import net.minecraft.world.level.block.RedstoneLampBlock;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
+import net.minecraft.world.entity.ai.behavior.AcquirePoi;
+import net.minecraft.world.entity.ai.behavior.BehaviorControl;
+import net.minecraft.world.entity.ai.village.poi.PoiType;
+import net.minecraft.world.entity.ai.village.poi.PoiTypes;
+import net.minecraft.world.entity.PathfinderMob;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -120,5 +126,41 @@ public class QuillVanillaGameTests {
 			}
 		}
 		h.succeed();
+	}
+
+	// run a job-site search by hand every tick, past its cooldown, and collect what it remembers.
+	// The nitwit's own brain drops the memory again on its next tick, so read it right after the search.
+	private static void searchJobs(GameTestHelper h, Villager v, java.util.function.Predicate<net.minecraft.core.Holder<PoiType>> type, java.util.function.Consumer<List<GlobalPos>> check) {
+		BehaviorControl<PathfinderMob> search = AcquirePoi.create(type, MemoryModuleType.JOB_SITE, MemoryModuleType.POTENTIAL_JOB_SITE, true, Optional.empty(), (l, p) -> true);
+		List<GlobalPos> found = new java.util.ArrayList<>();
+		for (int t = 1; t <= 60; t++) h.runAtTickTime(t, () -> {
+			search.tryStart(h.getLevel(), v, h.getLevel().getGameTime());
+			v.getBrain().getMemoryInternal(MemoryModuleType.POTENTIAL_JOB_SITE).ifPresent(found::add);
+		});
+		h.runAtTickTime(61, () -> check.accept(found));
+	}
+
+	@GameTest(maxTicks = 200)
+	public void jobSearchStillFindsLectern(GameTestHelper h) {
+		floor(h);
+		h.setBlock(5, 1, 4, Blocks.LECTERN);
+		Villager v = villager(h, new BlockPos(4, 1, 4), VillagerProfession.NITWIT);
+		searchJobs(h, v, p -> p.is(PoiTypes.LIBRARIAN), found -> {
+			GlobalPos want = GlobalPos.of(h.getLevel().dimension(), h.absolutePos(new BlockPos(5, 1, 4)));
+			h.assertTrue(found.contains(want), msg("lectern found, got " + found));
+			h.succeed();
+		});
+	}
+
+	@GameTest(maxTicks = 200)
+	public void nitwitFindsNoJob(GameTestHelper h) {
+		floor(h);
+		h.setBlock(5, 1, 4, Blocks.LECTERN);
+		Villager v = villager(h, new BlockPos(4, 1, 4), VillagerProfession.NITWIT);
+		searchJobs(h, v, PoiType.NONE, found -> {
+			h.assertTrue(found.isEmpty(), msg("no job site, got " + found));
+			h.assertTrue(v.getVillagerData().profession().is(VillagerProfession.NITWIT), msg("still a nitwit"));
+			h.succeed();
+		});
 	}
 }
