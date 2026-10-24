@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"package": "com.chopstickshq.quillcore.client.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"OptionsSubScreenAccessor",
+		"VideoSettingsRedirectMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

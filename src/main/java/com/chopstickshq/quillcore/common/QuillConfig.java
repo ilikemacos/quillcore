@@ -94,6 +94,14 @@ public final class QuillConfig {
 	 */
 	public boolean compactMeshEnabled = false;
 
+	public static final String DEFAULT_SUPPORT_URL = "https://buymeacoffee.com/chopstickshq";
+	/** Target of the "Buy me a coffee" button (always behind a vanilla link confirmation). */
+	public String supportUrl = DEFAULT_SUPPORT_URL;
+	/** Support-card bookkeeping, see {@code SupportPromptPolicy}. */
+	public int bmcOpenCount = 0;
+	public long bmcLastShownEpochMs = 0L;
+	public boolean bmcNeverShow = false;
+
 	private QuillConfig() {}
 
 	public static QuillConfig get() {
@@ -220,6 +228,11 @@ public final class QuillConfig {
 		} else if (fsrRenderScaleOverride > 1.0f) {
 			fsrRenderScaleOverride = 1.0f;
 		}
+		if (supportUrl == null || !(supportUrl.startsWith("https://") || supportUrl.startsWith("http://"))) {
+			supportUrl = DEFAULT_SUPPORT_URL;
+		}
+		bmcOpenCount = Math.max(0, bmcOpenCount);
+		bmcLastShownEpochMs = Math.max(0L, bmcLastShownEpochMs);
 		// No working frame-gen backend, keep generic flag off. fsrFrameGenEnabled may be stored but is ignored.
 		frameGenEnabled = false;
 	}

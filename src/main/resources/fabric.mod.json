@@ -31,7 +31,8 @@
 		"quillcore.mixins.json",
 		"quillcore.memory.mixins.json",
 		"quillcore.client.mixins.json",
-		"quillcore.memory.client.mixins.json"
+		"quillcore.memory.client.mixins.json",
+		"quillcore.client.ui.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.19.5",
