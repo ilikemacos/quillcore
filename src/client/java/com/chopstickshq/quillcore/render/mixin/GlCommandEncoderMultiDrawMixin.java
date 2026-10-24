@@ -2,14 +2,14 @@ package com.chopstickshq.quillcore.render.mixin;
 
 import com.chopstickshq.quillcore.render.region.RegionDraws;
 import com.mojang.blaze3d.opengl.GlCommandEncoder;
-import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderPass;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.system.MemoryStack;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.nio.IntBuffer;
 
@@ -19,19 +19,19 @@ import java.nio.IntBuffer;
  */
 @Mixin(GlCommandEncoder.class)
 public abstract class GlCommandEncoderMultiDrawMixin {
-	@Redirect(method = "executeDrawMultiple", at = @At(value = "INVOKE",
+	@WrapOperation(method = "executeDrawMultiple", at = @At(value = "INVOKE",
 			target = "Lcom/mojang/blaze3d/systems/RenderPass$Draw;indexCount()I"))
-	private int quillcore$armRanges(RenderPass.Draw<?> draw) {
+	private int quillcore$armRanges(RenderPass.Draw<?> draw, Operation<Integer> original) {
 		RegionDraws.arm(draw);
-		return draw.indexCount();
+		return original.call(draw);
 	}
 
-	@Redirect(method = "drawFromBuffers", at = @At(value = "INVOKE",
+	@WrapOperation(method = "drawFromBuffers", at = @At(value = "INVOKE",
 			target = "Lcom/mojang/blaze3d/opengl/GlStateManager;_drawElements(IIIJ)V"))
-	private void quillcore$multiDraw(int mode, int count, int type, long offset) {
+	private void quillcore$multiDraw(int mode, int count, int type, long offset, Operation<Void> original) {
 		int[] r = RegionDraws.takeArmed();
 		if (r == null) {
-			GlStateManager._drawElements(mode, count, type, offset);
+			original.call(mode, count, type, offset);
 			return;
 		}
 		long bytes = indexBytes(type);
