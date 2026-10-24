@@ -18,6 +18,7 @@ public final class MeshCacheHook {
 	private static MeshRamCache cache;
 	private static double cacheGb = -1;
 	private static long nextId = 1;
+	private static long frames;
 
 	private MeshCacheHook() {}
 
@@ -59,7 +60,9 @@ public final class MeshCacheHook {
 		MeshRamCache c = cache();
 		if (c == null) return;
 		LIVE.put(id, b);
-		for (long gone : c.uploaded(id, mesh)) {
+		long[] out = c.uploaded(id, mesh);
+		if (out.length > 0 && Boolean.getBoolean("quillcore.meshCacheLog")) QuillCore.LOGGER.info("mesh ram cache evicted {}: {}", out.length, stats());
+		for (long gone : out) {
 			SectionBuffers s = LIVE.get(gone);
 			if (s != null) s.getVertexBuffer().close();
 		}
@@ -95,6 +98,8 @@ public final class MeshCacheHook {
 
 	public static void endFrame() {
 		MeshRamCache c = cache();
-		if (c != null) c.endFrame();
+		if (c == null) return;
+		c.endFrame();
+		if (++frames % 1200 == 0) QuillCore.LOGGER.debug("mesh ram cache: {}", stats());
 	}
 }
