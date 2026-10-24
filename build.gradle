@@ -183,6 +183,8 @@ tasks.register('quillTest') {
 	def junitDir = layout.buildDirectory.dir("test-results/test")
 	def withBench = project.hasProperty('withBench')
 	def openReport = !project.hasProperty('noOpen')
+	def doUpload = !project.hasProperty('noUpload')
+	def dashboardUrl = (project.findProperty('quillDashboardUrl') ?: 'https://quillcore-dashboard.vercel.app').toString()
 	def template = file("gradle/quill-test/dashboard.html")
 	def root = projectDir
 	def props = [mc: project.minecraft_version, loader: project.loader_version, fabricApi: project.fabric_api_version, version: project.version]
@@ -242,9 +244,36 @@ tasks.register('quillTest') {
 		new File(out, 'summary.md').text = sb.toString()
 		println sb
 		println "Dashboard: ${html.toURI()}"
+		// Upload to the Vercel dashboard. The token lives in ~/.quillcore/upload-token.
+		String openUrl = html.toURI().toString()
+		def tokenFile = new File(System.getProperty('user.home'), '.quillcore/upload-token')
+		if (doUpload && tokenFile.isFile()) {
+			try {
+				def conn = (HttpURLConnection) new URL(dashboardUrl.replaceAll('/+$', '') + '/api/runs').openConnection()
+				conn.requestMethod = 'POST'
+				conn.doOutput = true
+				conn.connectTimeout = 15000
+				conn.readTimeout = 30000
+				conn.setRequestProperty('Content-Type', 'application/json')
+				conn.setRequestProperty('Authorization', 'Bearer ' + tokenFile.getText('UTF-8').trim())
+				conn.outputStream.withStream { it.write(groovy.json.JsonOutput.toJson(data).getBytes('UTF-8')) }
+				int code = conn.responseCode
+				if (code == 201) {
+					def resp = new groovy.json.JsonSlurper().parse(conn.inputStream)
+					openUrl = resp.url
+					println "Uploaded run ${resp.id}: ${resp.url}"
+				} else {
+					println "Dashboard upload failed: HTTP ${code} (local report kept)"
+				}
+			} catch (Exception e) {
+				println "Dashboard upload failed: ${e.class.simpleName} (local report kept)"
+			}
+		} else if (doUpload) {
+			println "No ${tokenFile}, skipping dashboard upload"
+		}
 		if (openReport && !System.getenv('CI')) {
 			def os = System.getProperty('os.name').toLowerCase()
-			def url = html.toURI().toString()
+			def url = openUrl
 			def candidates = []
 			if (os.contains('win')) {
 				def pf = [System.getenv('ProgramFiles(x86)'), System.getenv('ProgramFiles'), System.getenv('LOCALAPPDATA')].findAll { it }

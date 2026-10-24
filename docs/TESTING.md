@@ -15,6 +15,8 @@ Gradle needs JDK 25 (Loom 1.18). Reports go to `build/quill-test-report/`.
 
 `index.html` is an offline dashboard with per-layer results, failed tests, FPS and frame time charts and run info. It opens fullscreen in Edge or Chrome. `-PnoOpen` (or `CI`) skips that. `summary.md` has the same content.
 
+If `~/.quillcore/upload-token` exists, results are uploaded to the dashboard in `dashboard/` and the run page opens. `-PnoUpload` skips the upload and `-PquillDashboardUrl` changes the URL. Don't commit the token.
+
 The task fails if a layer fails or a requested layer wrote no report.
 
 With Logic on, resting item stacks merge later (scans every 40 ticks, up to maxSkip skips, about 440 ticks worst case). The end state matches vanilla and the merge test allows 1000 ticks.

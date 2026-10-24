@@ -1,0 +1,7 @@
+{
+  "name": "quillcore-dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": { "sync": "node sync-template.mjs" },
+  "dependencies": { "@vercel/blob": "^1.1.1" }
+}
