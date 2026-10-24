@@ -17,7 +17,11 @@
 		"FurnaceIdleMixin",
 		"CampfireIdleMixin",
 		"SectionStorageColumnsMixin",
-		"PoiManagerColumnsMixin"
+		"PoiManagerColumnsMixin",
+		"EntitySectionCollidersMixin",
+		"LevelEntityGetterAdapterAccessor",
+		"LevelEntitiesAccessor",
+		"EntityCollideSkipMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

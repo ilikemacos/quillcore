@@ -22,6 +22,12 @@ import net.minecraft.world.entity.ai.village.poi.PoiType;
 import net.minecraft.world.entity.ai.village.poi.PoiTypes;
 import net.minecraft.world.entity.PathfinderMob;
 
+import com.chopstickshq.quillcore.logic.HardColliders;
+import net.minecraft.world.entity.animal.Cow;
+import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.phys.Vec3;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -166,6 +172,23 @@ public class QuillVanillaGameTests {
 		searchJobs(h, v, PoiType.NONE, found -> {
 			h.assertTrue(found.isEmpty(), msg("no job site, got " + found));
 			h.assertTrue(v.getVillagerData().profession().is(VillagerProfession.NITWIT), msg("still a nitwit"));
+			h.succeed();
+		});
+	}
+
+	@GameTest(maxTicks = 100)
+	public void shulkerStillBlocksWalkers(GameTestHelper h) {
+		floor(h);
+		Shulker s = h.spawn(EntityType.SHULKER, 5, 1, 3);
+		s.setNoAi(true);
+		Cow c = h.spawn(EntityType.COW, 1, 1, 3);
+		c.setNoAi(true);
+		if (!HardColliders.mayCollide(s) || HardColliders.mayCollide(c)) h.fail(msg("collider classes misread"));
+		h.onEachTick(() -> c.move(MoverType.SELF, new Vec3(0.2, 0, 0)));
+		h.runAtTickTime(60, () -> {
+			double gap = s.getBoundingBox().minX - c.getBoundingBox().maxX;
+			if (gap < -1.0E-6) h.fail(msg("cow walked into the shulker, gap " + gap));
+			if (gap > 0.5) h.fail(msg("cow never reached the shulker, gap " + gap));
 			h.succeed();
 		});
 	}
