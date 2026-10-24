@@ -8,7 +8,8 @@
 		"ParticleRenderCutoffMixin",
 		"CloudDistanceCapMixin",
 		"WeatherRadiusCapMixin",
-		"GameRendererFsrMixin"
+		"GameRendererFsrMixin",
+		"GameRendererCsrMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

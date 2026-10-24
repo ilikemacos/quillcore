@@ -81,11 +81,13 @@ Defaults are conservative. Flip `masterEnabled`, `renderEnabled`, or `logicEnabl
 | Backend | Status |
 |---------|--------|
 | **AMD FSR1** (`fsr1`) | **Working path:** shrinks the vanilla main `RenderTarget` before `renderLevel`, runs **EASU + RCAS** (AMD FidelityFX FSR1, MIT), restores native resolution before GUI/HUD. Quality presets map to AMD render scales. |
-| CSR | Permanently excluded, never labelled as FSR. |
+| CSR Flux / CSR Frame Gen | Optional add-on, **off by default** (`csrFlux`, `csrFrameGen`). GLSL port of the Universal-FrameFX CSR models. Never labelled as FSR. See [docs/csr.md](docs/csr.md). |
 
 **Sodium:** not supported, QuillCore replaces it and Fabric will refuse to load both. FSR1 uses the vanilla main target.
 
 **License:** FSR1 algorithm © AMD, MIT, see `third_party/amd-fsr1/`. FSR2/3 SDK licenses are separate; QuillCore does not ship those SDKs.
+
+**CSR credit:** the CSR Flux and CSR Frame Gen model weights come from Universal-FrameFX (MIT, copyright as stated in its LICENSE), see `third_party/universal-framefx/`. The GLSL passes are a new port derived from its shaders.
 
 
 ## Benchmarks
