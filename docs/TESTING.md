@@ -19,6 +19,7 @@ Gradle must run on JDK 25+ (Loom 1.18); the mod still targets Java 21.
 FPS-over-time and frame-time charts (ON vs OFF overlaid), 1%-low/avg FPS and MSPT bars, and run metadata.
 It opens fullscreen in Edge/Chrome (`--start-fullscreen`; falls back to the default browser) and has a Fullscreen button (F toggles, Esc exits); pass `-PnoOpen` (or set `CI`) to skip. `summary.md` is the same in Markdown.
 After a run, results are pushed (one-way) to the Vercel dashboard in `dashboard/` if `~/.quillcore/upload-token` exists, and the browser opens that run; `-PnoUpload` skips it, `-PquillDashboardUrl` overrides the URL. The token is never committed.
+The bench layer is marked INVALID (not PASS) when GL_RENDERER is not the NVIDIA GPU (`-PallowAnyGpu` overrides), a segment is pinned at an FPS cap (10/30/60/the configured cap), or the window lost focus or was minimized. During the bench a test-only mixin disables Minecraft's AFK/minimized/focus-loss frame-rate throttling.
 The task fails if any layer fails or a requested layer produced no report.
 
 Note: with Logic ON, resting item stacks merge later (merge scans run every 40 ticks and can be skipped up to

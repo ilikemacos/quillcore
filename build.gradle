@@ -184,6 +184,7 @@ tasks.register('quillTest') {
 	def withBench = project.hasProperty('withBench')
 	def openReport = !project.hasProperty('noOpen')
 	def doUpload = !project.hasProperty('noUpload')
+	def allowAnyGpu = project.hasProperty('allowAnyGpu')
 	def dashboardUrl = (project.findProperty('quillDashboardUrl') ?: 'https://quillcore-dashboard.vercel.app').toString()
 	def template = file("gradle/quill-test/dashboard.html")
 	def root = projectDir
@@ -199,6 +200,8 @@ tasks.register('quillTest') {
 		def benchJson = new File(out, 'bench.json')
 		def bench = withBench && benchJson.isFile() ? new groovy.json.JsonSlurper().parse(benchJson) : null
 		boolean bad = false
+		boolean benchInvalid = false
+		String gpuRenderer = 'not measured (bench not run)'
 		def layerData = layers.collect { l ->
 			def r = l[1]
 			if (!r.found) { bad = true; return [name: l[0], status: 'not run', note: 'no JUnit XML report produced'] }
@@ -210,10 +213,42 @@ tasks.register('quillTest') {
 			layerData << [name: 'Client benchmark (ON vs OFF)', status: 'not run', note: withBench ? 'bench.json missing — benchmark did not complete' : 'pass -PwithBench (needs a real GPU)']
 			if (withBench) bad = true
 		} else {
-			layerData << [name: 'Client benchmark (ON vs OFF)', status: 'ran', tests: bench.segments.size(), passed: bench.segments.count { it.avgFps != null },
-			              failed: bench.segments.count { it.avgFps == null }, skipped: 0,
-			              failures: benchOk ? [] : [[name: 'autobench', message: bench.environment]]]
-			if (!benchOk) bad = true
+			def segs = bench.segments ?: []
+			def failedSegs = segs.count { it.avgFps == null }
+			// Validity: the numbers only mean something on the dGPU, unthrottled, in focus, and below every FPS cap.
+			def invalid = []
+			def benv = bench.environment ?: ''
+			def renderer = (benv =~ /gpu=([^;]*)/) ? (benv =~ /gpu=([^;]*)/)[0][1].trim() : 'unknown'
+			if (!(renderer =~ /(?i)nvidia|geforce|rtx/) && !allowAnyGpu)
+				invalid << "GL renderer is '${renderer}', not the NVIDIA GPU (set javaw.exe to High performance; -PallowAnyGpu to override)".toString()
+			def capM = benv =~ /cap=(\d+)/
+			def caps = [10, 30, 60] + (capM ? [capM[0][1] as int] : [])
+			segs.each { sg ->
+				def fps = (sg.fpsPerSecond ?: []) as List
+				caps.each { c ->
+					if (sg.avgFps != null && Math.abs(sg.avgFps - c) / c < 0.03)
+						invalid << "segment ${sg.label.toUpperCase()} #${sg.segment + 1} avg ${String.format('%.1f', sg.avgFps)} FPS is pinned at the ${c} FPS cap".toString()
+					else if (fps.size() >= 5 && fps.count { Math.abs(it - c) / c < 0.03 } > fps.size() / 2)
+						invalid << "segment ${sg.label.toUpperCase()} #${sg.segment + 1} spent most seconds pinned at ${c} FPS".toString()
+				}
+			}
+			['unfocusedTicks': 'the game window lost focus', 'iconifiedTicks': 'the game window was minimized'].each { k, why ->
+				def mm = benv =~ /${k}=(\d+)/
+				if (mm && (mm[0][1] as int) > 20) invalid << "${why} for ${mm[0][1]} ticks during measurement".toString()
+			}
+			if (benv.startsWith('ERROR')) invalid << benv
+			def st = failedSegs > 0 ? 'ran' : (invalid ? 'invalid' : 'ran')
+			layerData << [name: 'Client benchmark (ON vs OFF)', status: st, tests: segs.size(), passed: segs.size() - failedSegs,
+			              failed: failedSegs, skipped: 0, invalidReasons: invalid,
+			              failures: failedSegs ? [[name: 'autobench', message: benv]] : []]
+			if (failedSegs > 0) bad = true
+			if (invalid) {
+				benchInvalid = true
+				invalid.each { println "BENCH INVALID: ${it}" }
+			}
+			bench.valid = !invalid
+			bench.invalidReasons = invalid
+			gpuRenderer = renderer
 		}
 		def env = bench?.environment ?: ''
 		def gpu = (env =~ /gpu=([^;]*)/) ? (env =~ /gpu=([^;]*)/)[0][1] : 'not measured (bench not run)'
@@ -222,18 +257,18 @@ tasks.register('quillTest') {
 		            commit: tryExec(['git', 'rev-parse', '--short', 'HEAD'], root) ?: 'unknown',
 		            branch: tryExec(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], root) ?: 'unknown',
 		            'QuillCore': props.version, 'Minecraft': props.mc, 'Fabric Loader': props.loader, 'Fabric API': props.fabricApi,
-		            GPU: gpu, 'Bench resolution': ((env =~ /resolution=([^;]*)/) ? (env =~ /resolution=([^;]*)/)[0][1] + ((env.contains('fullscreen=true')) ? ' (fullscreen)' : ' (windowed)') : '—'), 'OpenGL': gl ?: '—',
+		            GPU: gpu, 'GPU renderer (GL_RENDERER)': gpuRenderer, 'Bench resolution': ((env =~ /resolution=([^;]*)/) ? (env =~ /resolution=([^;]*)/)[0][1] + ((env.contains('fullscreen=true')) ? ' (fullscreen)' : ' (windowed)') : '—'), 'OpenGL': gl ?: '—',
 		            'GPU driver': tryExec(['nvidia-smi', '--query-gpu=name,driver_version', '--format=csv,noheader'], root) ?: (gl ?: '—'),
 		            OS: "${System.getProperty('os.name')} ${System.getProperty('os.version')}", 'Gradle JVM': System.getProperty('java.version'),
 		            'Bench settings': env ? env.replaceAll(/gpu=[^;]*;\s*glVersion=[^;]*;?\s*/, '').replaceAll(/resolution=[^;]*;\s*/, '') : '—']
-		def data = [meta: meta, layers: layerData, bench: bench, overall: bad ? (layerData.any { it.failed } ? 'fail' : 'partial') : 'pass',
+		def data = [meta: meta, layers: layerData, bench: bench, overall: bad ? (layerData.any { it.failed } ? 'fail' : 'partial') : (benchInvalid ? 'invalid' : 'pass'),
 		            benchNote: withBench ? 'run requested but no data' : 'not requested']
 		def json = groovy.json.JsonOutput.toJson(data).replace('</', '<\\/')
 		def html = new File(out, 'index.html')
 		html.setText(template.getText('UTF-8').replace('/*__QUILL_DATA__*/null', json), 'UTF-8')
 
 		def sb = new StringBuilder("# QuillCore test report\n\n| Layer | Tests | Passed | Failed | Skipped |\n|---|---|---|---|---|\n")
-		layerData.each { l -> sb << (l.status == 'not run' ? "| ${l.name} | — | — | not run | — |\n" : "| ${l.name} | ${l.tests} | ${l.passed} | ${l.failed} | ${l.skipped} |\n") }
+		layerData.each { l -> sb << (l.status == 'not run' ? "| ${l.name} | — | — | not run | — |\n" : l.status == 'invalid' ? "| ${l.name} | ${l.tests} | INVALID | ${l.invalidReasons.join('; ')} | — |\n" : "| ${l.name} | ${l.tests} | ${l.passed} | ${l.failed} | ${l.skipped} |\n") }
 		layerData.each { l -> l.failures?.each { sb << "\n- FAIL ${l.name}: ${it.name} — ${it.message}" } }
 		def csv = new File(out, 'bench.csv')
 		if (bench != null && csv.isFile()) {

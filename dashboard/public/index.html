@@ -9,7 +9,7 @@ main{width:100%;min-height:100vh;padding:clamp(14px,2vw,32px) clamp(14px,2.5vw,4
 a{color:var(--on)}.sub{color:var(--mute)}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
 .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))}
 table{width:100%;border-collapse:collapse}td,th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mute);font-weight:500;font-size:12px}
-.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;color:#fff}.pass{background:var(--ok)}.fail{background:var(--bad)}.partial{background:var(--na)}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;color:#fff}.pass{background:var(--ok)}.fail{background:var(--bad)}.partial{background:var(--na)}.inv{background:#b7791f}
 code{font:12px ui-monospace,Consolas,monospace}button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}button:disabled{opacity:.5}
 #fs{position:fixed;top:14px;right:16px;z-index:5}svg{display:block;height:auto}svg text{fill:var(--mute);font-size:11px}
 .legend span{display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:12px}.legend b{width:14px;height:3px;border-radius:2px;display:inline-block}
@@ -20,7 +20,7 @@ code{font:12px ui-monospace,Consolas,monospace}button{background:var(--card);col
 const app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const f = (x, d = 1) => x == null ? '—' : Number(x).toFixed(d);
-const pill = o => `<span class="pill ${o === 'pass' ? 'pass' : o === 'fail' ? 'fail' : 'partial'}">${o === 'pass' ? 'PASS' : o === 'fail' ? 'FAIL' : 'PARTIAL'}</span>`;
+const pill = o => `<span class="pill ${({pass: 'pass', fail: 'fail', invalid: 'inv'})[o] || 'partial'}">${({pass: 'PASS', fail: 'FAIL', invalid: 'BENCH INVALID'})[o] || 'PARTIAL'}</span>`;
 const q = new URLSearchParams(location.search);
 
 async function history() {
@@ -56,13 +56,13 @@ async function compare(a, b) {
   const seg = (D, label) => (D.bench?.segments || []).find(s => s.label === label)?.fpsPerSecond || [];
   app.innerHTML = `<p><a href="/">← All runs</a></p><h1>Compare runs</h1>
   <div class="sub"><b style="color:var(--a)">A</b> <a href="/run?id=${esc(a)}">${esc(A.meta.generated)}</a> <code>${esc(A.meta.commit)}</code> ${pill(A.overall)} &nbsp; vs &nbsp; <b style="color:var(--b)">B</b> <a href="/run?id=${esc(b)}">${esc(B.meta.generated)}</a> <code>${esc(B.meta.commit)}</code> ${pill(B.overall)}</div>
-  <h2>Benchmark</h2><div class="card"><table><tr><th>Metric</th><th>A on</th><th>B on</th><th>B vs A (on)</th><th>A off</th><th>B off</th><th>B vs A (off)</th></tr>
+  <h2>Benchmark</h2>${[A, B].some(D => D.bench?.valid === false) ? `<div class="card" style="border-color:#b7791f;margin-bottom:10px"><b style="color:#b7791f">Warning:</b> ${[['A', A], ['B', B]].filter(([, D]) => D.bench?.valid === false).map(([n]) => n).join(' and ')} has an INVALID benchmark; deltas are not meaningful.</div>` : ''}<div class="card"><table><tr><th>Metric</th><th>A on</th><th>B on</th><th>B vs A (on)</th><th>A off</th><th>B off</th><th>B vs A (off)</th></tr>
   ${rows.map(([n, k, d, bt]) => `<tr><td>${n}</td><td>${f(metric(A, k, 'on'), d)}</td><td>${f(metric(B, k, 'on'), d)}</td><td>${delta(metric(B, k, 'on'), metric(A, k, 'on'), bt)}</td><td>${f(metric(A, k, 'off'), d)}</td><td>${f(metric(B, k, 'off'), d)}</td><td>${delta(metric(B, k, 'off'), metric(A, k, 'off'), bt)}</td></tr>`).join('')}</table></div>
   <h2>FPS over time (first segment of each mode)</h2><div class="grid">
   ${chart('QuillCore ON', [{n: 'A on', c: 'var(--a)', pts: seg(A, 'on')}, {n: 'B on', c: 'var(--b)', pts: seg(B, 'on')}], 'seconds')}
   ${chart('QuillCore OFF', [{n: 'A off', c: 'var(--a)', d: '5 3', pts: seg(A, 'off')}, {n: 'B off', c: 'var(--b)', d: '5 3', pts: seg(B, 'off')}], 'seconds')}</div>
   <h2>Tests</h2><div class="grid"><div class="card"><b style="color:var(--a)">A</b><br>${tests(A)}</div><div class="card"><b style="color:var(--b)">B</b><br>${tests(B)}</div></div>
-  <h2>Environment</h2><div class="card"><table><tr><th></th><th>A</th><th>B</th></tr>${['GPU', 'Bench resolution', 'GPU driver', 'Minecraft', 'Fabric Loader', 'QuillCore', 'Bench settings'].map(k => `<tr><td class="sub">${k}</td><td><code>${esc(A.meta[k])}</code></td><td><code>${esc(B.meta[k])}</code></td></tr>`).join('')}</table></div>`;
+  <h2>Environment</h2><div class="card"><table><tr><th></th><th>A</th><th>B</th></tr>${['GPU renderer (GL_RENDERER)', 'Bench resolution', 'GPU driver', 'Minecraft', 'Fabric Loader', 'QuillCore', 'Bench settings'].map(k => `<tr><td class="sub">${k}</td><td><code>${esc(A.meta[k])}</code></td><td><code>${esc(B.meta[k])}</code></td></tr>`).join('')}</table></div>`;
 }
 
 (q.get('a') && q.get('b') ? compare(q.get('a'), q.get('b')) : history()).catch(e => app.innerHTML = `<p>Failed to load: ${esc(e)}</p>`);

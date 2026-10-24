@@ -17,10 +17,23 @@ async function readBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
+const GPU_RE = /nvidia|geforce|rtx/i;
+const HIDDEN = new Set(['20261024-004253-89c9d2']); // box smoke-test upload, not a real G14 run
+// Re-validate on read so runs uploaded before the GPU check existed are flagged too.
+function revalidate(d) {
+  const gpu = d.meta?.['GPU renderer (GL_RENDERER)'] || d.bench?.environment || '';
+  if (d.bench && !GPU_RE.test(gpu)) {
+    d.bench.valid = false;
+    d.bench.invalidReasons = [...new Set([...(d.bench.invalidReasons || []), 'Bench did not run on the NVIDIA dGPU (GL_RENDERER: ' + (gpu.match(/gpu=([^;]*)/)?.[1] || gpu || 'unknown') + ')'])];
+    if (d.overall === 'pass') d.overall = 'invalid';
+  }
+  return d;
+}
+
 function summarize(id, d) {
   const s = d.bench?.summary || {};
   return {
-    id, generated: d.meta?.generated, commit: d.meta?.commit, branch: d.meta?.branch, gpu: d.meta?.GPU,
+    id, generated: d.meta?.generated, commit: d.meta?.commit, branch: d.meta?.branch, gpu: d.meta?.['GPU renderer (GL_RENDERER)'] || d.meta?.GPU, benchValid: d.bench ? d.bench.valid !== false : null,
     resolution: d.meta?.['Bench resolution'], overall: d.overall,
     layers: (d.layers || []).map(l => ({ name: l.name, status: l.status, tests: l.tests ?? null, passed: l.passed ?? null, failed: l.failed ?? null })),
     avgFps: s.avgFps || null, pct1LowFps: s.pct1LowFps || null, msptAvg: s.msptAvg || null,
@@ -46,15 +59,19 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const id = req.query.id;
       if (id) {
-        if (!ID_RE.test(id)) return res.status(400).json({ error: 'bad id' });
+        if (!ID_RE.test(id) || HIDDEN.has(id)) return res.status(400).json({ error: 'bad id' });
         const { blobs } = await list({ prefix: `runs/${id}.json`, limit: 1 });
         if (!blobs.length) return res.status(404).json({ error: 'not found' });
         const r = await fetch(blobs[0].url, { cache: 'no-store' });
-        return res.status(200).json(await r.json());
+        return res.status(200).json(revalidate(await r.json()));
       }
-      const { blobs } = await list({ prefix: 'index/', limit: 1000 });
+      let { blobs } = await list({ prefix: 'index/', limit: 1000 });
+      blobs = blobs.filter(b => !HIDDEN.has(b.pathname.slice(6, -5)));
       blobs.sort((a, b) => b.pathname.localeCompare(a.pathname));
-      const runs = await Promise.all(blobs.slice(0, 100).map(b => fetch(b.url, { cache: 'no-store' }).then(r => r.json()).catch(() => null)));
+      const runs = await Promise.all(blobs.slice(0, 100).map(b => fetch(b.url, { cache: 'no-store' }).then(r => r.json()).then(x => {
+        if (x && x.benchValid !== false && (x.benchValid || x.avgFps) && !GPU_RE.test(x.gpu || '')) { x.benchValid = false; if (x.overall === 'pass') x.overall = 'invalid'; }
+        return x;
+      }).catch(() => null)));
       return res.status(200).json({ runs: runs.filter(Boolean) });
     }
     res.setHeader('Allow', 'GET, POST');
