@@ -19,6 +19,7 @@ public final class QuillMixinPlugin implements IMixinConfigPlugin {
 	private static final Set<String> OVERLAPS_LITHIUM = Set.of(
 			"EntityCollideSkipMixin",
 			"EntitySectionCollidersMixin",
+			"LivingEntityPushWalkMixin",
 			"BlockCollisionsFastMixin",
 			"PistonBaseBlockDirectionsMixin",
 			"PistonStructureResolverDirectionsMixin",

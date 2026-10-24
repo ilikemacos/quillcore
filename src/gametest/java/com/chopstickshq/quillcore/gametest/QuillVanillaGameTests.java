@@ -404,4 +404,64 @@ public class QuillVanillaGameTests {
 		for (var s : h.getLevel().getBlockCollisions(who, box)) out.add(s.bounds().toString() + s.toAabbs().size());
 		return out;
 	}
+
+	@GameTest(maxTicks = 80)
+	public void pushWalkMatchesVanilla(GameTestHelper h) {
+		for (int x = 0; x < 7; x++) for (int z = 0; z < 7; z++) {
+			h.setBlock(x, 0, z, Blocks.STONE.defaultBlockState());
+			if (x == 0 || z == 0 || x == 6 || z == 6) h.setBlock(x, 1, z, Blocks.STONE.defaultBlockState());
+		}
+		var board = h.getLevel().getScoreboard();
+		String tn = "qc_push_" + System.nanoTime() % 100000;
+		var own = board.addPlayerTeam(tn + "o");
+		own.setCollisionRule(net.minecraft.world.scores.Team.CollisionRule.PUSH_OWN_TEAM);
+		var other = board.addPlayerTeam(tn + "x");
+		other.setCollisionRule(net.minecraft.world.scores.Team.CollisionRule.PUSH_OTHER_TEAMS);
+		java.util.Random r = new java.util.Random(7);
+		List<net.minecraft.world.entity.LivingEntity> mobs = new java.util.ArrayList<>();
+		for (int i = 0; i < 14; i++) {
+			Cow c = h.spawn(EntityType.COW, new Vec3(2.4 + r.nextDouble() * 2.2, 1, 2.4 + r.nextDouble() * 2.2));
+			if (i % 5 == 1) board.addPlayerToTeam(c.getScoreboardName(), own);
+			if (i % 5 == 3) board.addPlayerToTeam(c.getScoreboardName(), other);
+			mobs.add(c);
+		}
+		mobs.add(h.spawn(EntityType.ARMOR_STAND, new Vec3(3.5, 1, 3.5)));
+		var boat = h.spawn(EntityType.OAK_BOAT, new Vec3(3.2, 1, 4.1));
+		Cow rider = h.spawn(EntityType.COW, new Vec3(3.2, 1, 4.1));
+		rider.startRiding(boat, true);
+		mobs.add(rider);
+		int[] compared = {0};
+		h.onEachTick(() -> {
+			List<Entity> all = h.getLevel().getEntitiesOfClass(Entity.class, new AABB(h.absolutePos(BlockPos.ZERO)).inflate(8), e -> true);
+			for (var m : mobs) {
+				Vec3[] before = new Vec3[all.size()];
+				boolean[] imp = new boolean[all.size()];
+				for (int i = 0; i < all.size(); i++) { before[i] = all.get(i).getDeltaMovement(); imp[i] = all.get(i).hasImpulse; }
+				com.chopstickshq.quillcore.logic.PushWalk.forceVanilla = true;
+				try {
+					((com.chopstickshq.quillcore.gametest.mixin.LivingEntityPushInvoker) m).quillcore$pushEntities();
+				} finally {
+					com.chopstickshq.quillcore.logic.PushWalk.forceVanilla = false;
+				}
+				Vec3[] want = new Vec3[all.size()];
+				for (int i = 0; i < all.size(); i++) { want[i] = all.get(i).getDeltaMovement(); all.get(i).setDeltaMovement(before[i]); all.get(i).hasImpulse = imp[i]; }
+				((com.chopstickshq.quillcore.gametest.mixin.LivingEntityPushInvoker) m).quillcore$pushEntities();
+				for (int i = 0; i < all.size(); i++) {
+					Vec3 got = all.get(i).getDeltaMovement();
+					if (Double.doubleToRawLongBits(got.x) != Double.doubleToRawLongBits(want[i].x)
+							|| Double.doubleToRawLongBits(got.y) != Double.doubleToRawLongBits(want[i].y)
+							|| Double.doubleToRawLongBits(got.z) != Double.doubleToRawLongBits(want[i].z)) {
+						h.fail(msg("push by " + m + " on " + all.get(i) + " got " + got + " vanilla " + want[i]));
+					}
+					if (!before[i].equals(want[i])) compared[0]++;
+				}
+			}
+		});
+		h.runAtTickTime(70, () -> {
+			board.removePlayerTeam(own);
+			board.removePlayerTeam(other);
+			if (compared[0] < 50) h.fail(msg("too few pushes compared: " + compared[0]));
+			h.succeed();
+		});
+	}
 }
