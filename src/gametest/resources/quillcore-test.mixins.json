@@ -2,6 +2,7 @@
 	"required": true,
 	"package": "com.chopstickshq.quillcore.gametest.mixin",
 	"compatibilityLevel": "JAVA_21",
+	"mixins": ["LivingEntityPushInvoker"],
 	"client": ["FramerateLimitTrackerMixin"],
 	"injectors": { "defaultRequire": 1 }
 }
