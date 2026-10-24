@@ -170,7 +170,10 @@ public final class QuillAutoBench implements ClientModInitializer {
 		mc.player.setXRot(COMPARE_PITCH);
 		if (!(settled(mc) || compareTicks > REBUILD_TIMEOUT_TICKS)) return;
 		int step = compareStep;
-		if (step == 1) compareStats = QuillMeshStats.snapshot();
+		if (step == 1) {
+			compareStats = QuillMeshStats.snapshot();
+			QuillCore.LOGGER.info("[quill-bench] region slabs: {}", com.chopstickshq.quillcore.render.region.RegionSlabs.count());
+		}
 		pendingShots++;
 		Screenshot.takeScreenshot(mc.getMainRenderTarget(), img -> {
 			shots[step] = img.getPixels();
