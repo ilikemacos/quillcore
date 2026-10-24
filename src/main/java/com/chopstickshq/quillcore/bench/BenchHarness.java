@@ -46,6 +46,11 @@ public final class BenchHarness {
 		}
 	}
 
+	/** Copy of raw frame-time samples (ns) for the current/last run, in arrival order. */
+	public static synchronized List<Long> frameSamplesCopy() {
+		return new ArrayList<>(frameSamplesNs);
+	}
+
 	public static synchronized String report() {
 		return snapshot().toString();
 	}

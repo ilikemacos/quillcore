@@ -55,6 +55,8 @@ Gradle needs JDK 25. The mod targets Java 21.
 ./gradlew build
 ```
 
+See [docs/TESTING.md](docs/TESTING.md) for the test engine and benchmark.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>QuillCore test dashboard</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#14171c;--mute:#5d6673;--line:#e2e5ea;--ok:#1a7f4b;--bad:#c62f2f;--na:#8a93a0;--on:#2f6fdf;--off:#e07b16}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#181c22;--fg:#e8ebef;--mute:#98a2ae;--line:#2a3039;--ok:#3fbf7f;--bad:#ff6b6b;--na:#6b7480;--on:#6ea0ff;--off:#ffa24a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{width:100%;min-height:100vh;margin:0;padding:clamp(14px,2vw,32px) clamp(14px,2.5vw,40px) 40px}
+#fs{position:fixed;top:14px;right:16px;z-index:5;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}#fs:hover{border-color:var(--on)}
+svg{display:block;height:auto}h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:28px 0 10px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+.sub{color:var(--mute)}.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card .k{color:var(--mute);font-size:12px}.card .v{font-size:28px;font-weight:650;margin:4px 0}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;color:#fff}
+.pass{background:var(--ok)}.fail{background:var(--bad)}.na{background:var(--na)}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:8px;display:flex}.bar i{display:block;height:100%}
+table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--mute);font-weight:500;font-size:12px}
+code{font:12px ui-monospace,Consolas,monospace}.msg{color:var(--bad);white-space:pre-wrap}
+svg text{fill:var(--mute);font-size:11px}.legend span{display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:12px}.legend b{width:14px;height:3px;border-radius:2px;display:inline-block}
+.empty{color:var(--mute);padding:26px;text-align:center;border:1px dashed var(--line);border-radius:10px}
+</style>
+</head>
+<body><button id="fs" title="Toggle fullscreen (F / Esc)">⛶ Fullscreen</button><main id="app"></main>
+<script>
+const D = /*__QUILL_DATA__*/null;
+const $ = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstChild; };
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const f = (x, d = 1) => x == null ? '—' : Number(x).toFixed(d);
+const app = document.getElementById('app');
+const m = D.meta || {};
+app.append($(`<header><h1>QuillCore test dashboard</h1><div class="sub">${esc(m.generated)} · commit <code>${esc(m.commit)}</code> · ${D.overall === 'pass' ? '<span class="pill pass">ALL GREEN</span>' : D.overall === 'fail' ? '<span class="pill fail">FAILURES</span>' : '<span class="pill na">PARTIAL</span>'}</div></header>`));
+
+// ---- layer cards
+app.append($('<h2>Layers</h2>'));
+const cards = $('<div class="grid"></div>');
+for (const L of D.layers) {
+  let status, body;
+  if (L.status === 'not run') { status = '<span class="pill na">NOT RUN</span>'; body = `<div class="v" style="color:var(--na)">—</div><div class="sub">${esc(L.note || 'layer did not run')}</div>`; }
+  else {
+    status = L.failed > 0 || L.tests === 0 ? '<span class="pill fail">FAIL</span>' : '<span class="pill pass">PASS</span>';
+    const p = L.tests ? L.passed / L.tests * 100 : 0, fl = L.tests ? L.failed / L.tests * 100 : 0;
+    body = `<div class="v">${L.passed}<span class="sub" style="font-size:16px"> / ${L.tests}</span></div><div class="sub">${L.failed} failed · ${L.skipped} skipped</div><div class="bar"><i style="width:${p}%;background:var(--ok)"></i><i style="width:${fl}%;background:var(--bad)"></i></div>`;
+  }
+  cards.append($(`<div class="card"><div class="k">${esc(L.name)} ${status}</div>${body}</div>`));
+}
+app.append(cards);
+
+// ---- failures
+const fails = D.layers.flatMap(L => (L.failures || []).map(x => ({...x, layer: L.name})));
+app.append($('<h2>Failed tests</h2>'));
+app.append(fails.length ? $(`<div class="card"><table><tr><th>Layer</th><th>Test</th><th>Message</th></tr>${fails.map(x => `<tr><td>${esc(x.layer)}</td><td><code>${esc(x.name)}</code></td><td class="msg">${esc(x.message)}</td></tr>`).join('')}</table></div>`)
+  : $('<div class="empty">No failed tests in the layers that ran.</div>'));
+
+// ---- charts
+function lineChart(title, unit, series) {
+  const W = 560, H = 230, P = {l: 44, r: 10, t: 12, b: 26};
+  const all = series.flatMap(s => s.pts);
+  if (!all.length) return `<div class="card"><div class="k">${title}</div><div class="empty">No samples.</div></div>`;
+  const maxX = Math.max(...series.map(s => s.pts.length - 1), 1);
+  const lo = 0, hi = Math.max(...all) * 1.08 || 1;
+  const X = i => P.l + i / maxX * (W - P.l - P.r), Y = v => H - P.b - (v - lo) / (hi - lo) * (H - P.t - P.b);
+  let g = '';
+  for (let k = 0; k <= 4; k++) { const v = lo + (hi - lo) * k / 4; g += `<line x1="${P.l}" x2="${W - P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${P.l - 6}" y="${Y(v) + 4}" text-anchor="end">${v.toFixed(v < 10 ? 1 : 0)}</text>`; }
+  const paths = series.map(s => `<polyline fill="none" stroke="${s.color}" stroke-width="1.6" stroke-dasharray="${s.dash || ''}" points="${s.pts.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}"/>`).join('');
+  const legend = series.map(s => `<span><b style="background:${s.color}"></b>${esc(s.name)}</span>`).join('');
+  return `<div class="card"><div class="k">${title}</div><svg viewBox="0 0 ${W} ${H}" width="100%">${g}${paths}<text x="${W - P.r}" y="${H - 6}" text-anchor="end">${unit}</text></svg><div class="legend">${legend}</div></div>`;
+}
+function barChart(title, rows) {
+  const W = 560, rowH = 46, H = rows.length * rowH + 10, L = 120;
+  const max = Math.max(...rows.flatMap(r => [r.on, r.off].filter(x => x != null)), 1);
+  const bw = v => v == null ? 0 : v / max * (W - L - 70);
+  const body = rows.map((r, i) => { const y = i * rowH + 6; return `<text x="0" y="${y + 18}">${esc(r.name)}</text>
+    <rect x="${L}" y="${y}" height="15" rx="3" width="${bw(r.on)}" fill="var(--on)"/><text x="${L + bw(r.on) + 6}" y="${y + 12}">${r.on == null ? 'n/a' : f(r.on, r.d)}</text>
+    <rect x="${L}" y="${y + 19}" height="15" rx="3" width="${bw(r.off)}" fill="var(--off)"/><text x="${L + bw(r.off) + 6}" y="${y + 31}">${r.off == null ? 'n/a' : f(r.off, r.d)}</text>`; }).join('');
+  return `<div class="card"><div class="k">${title}</div><svg viewBox="0 0 ${W} ${H}" width="100%">${body}</svg><div class="legend"><span><b style="background:var(--on)"></b>QuillCore ON</span><span><b style="background:var(--off)"></b>OFF</span></div></div>`;
+}
+app.append($('<h2>Client benchmark — QuillCore ON vs OFF</h2>'));
+const B = D.bench;
+if (!B || !B.segments || !B.segments.length) {
+  app.append($(`<div class="empty">Benchmark not run${D.benchNote ? ' — ' + esc(D.benchNote) : ''}. Numbers appear here only after a real run (<code>gradlew quillTest -PwithBench</code>).</div>`));
+} else {
+  const segs = B.segments, S = B.summary || {};
+  const col = (s, k) => ({name: `${s.label.toUpperCase()} #${s.segment + 1}`, color: s.label === 'on' ? 'var(--on)' : 'var(--off)', dash: k % 2 ? '' : '', pts: s[k] || []});
+  const byLabel = (k) => segs.map((s, i) => ({...col(s, k), dash: segs.slice(0, i).filter(x => x.label === s.label).length ? '5 3' : ''}));
+  const charts = $('<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))"></div>');
+  charts.append($(lineChart('FPS over time (per second)', 'seconds', byLabel('fpsPerSecond'))));
+  charts.append($(lineChart('Frame time (ms, bucket max — spikes kept)', 'samples', byLabel('frameTimeMsSeries'))));
+  charts.append($(barChart('FPS — mean of segments', [
+    {name: 'Avg FPS', on: S.avgFps?.on, off: S.avgFps?.off, d: 1}, {name: '1% low FPS', on: S.pct1LowFps?.on, off: S.pct1LowFps?.off, d: 1}])));
+  charts.append($(barChart('Integrated server tick (MSPT) & frame time', [
+    {name: 'MSPT avg', on: S.msptAvg?.on, off: S.msptAvg?.off, d: 2}, {name: 'Frame p50 ms', on: S.frameTimeP50Ms?.on, off: S.frameTimeP50Ms?.off, d: 2}, {name: 'Frame p99 ms', on: S.frameTimeP99Ms?.on, off: S.frameTimeP99Ms?.off, d: 2}])));
+  app.append(charts);
+  const pct = (k) => S[k]?.onVsOffPct == null ? '—' : (S[k].onVsOffPct > 0 ? '+' : '') + f(S[k].onVsOffPct) + '%';
+  app.append($(`<div class="card" style="margin-top:14px"><table><tr><th>Segment</th><th>Avg FPS</th><th>1% low</th><th>p50 ms</th><th>p99 ms</th><th>MSPT</th></tr>
+    ${segs.map(s => `<tr><td>${s.label.toUpperCase()} #${s.segment + 1}</td><td>${f(s.avgFps)}</td><td>${f(s.pct1LowFps)}</td><td>${f(s.frameTimeP50Ms, 2)}</td><td>${f(s.frameTimeP99Ms, 2)}</td><td>${f(s.msptAvg, 2)}</td></tr>`).join('')}
+    <tr><th>ON vs OFF</th><th>${pct('avgFps')}</th><th>${pct('pct1LowFps')}</th><th>${pct('frameTimeP50Ms')}</th><th>${pct('frameTimeP99Ms')}</th><th>${pct('msptAvg')}</th></tr></table></div>`));
+}
+
+// ---- metadata
+app.append($('<h2>Run metadata</h2>'));
+const rows = Object.entries(m).filter(([k]) => k !== 'generated').map(([k, v]) => `<tr><td class="sub">${esc(k)}</td><td><code>${esc(v)}</code></td></tr>`).join('');
+app.append($(`<div class="card"><table>${rows}</table></div>`));
+app.append($('<p class="sub" style="margin-top:20px">Only measured data is shown. Layers that did not run are marked “not run”. Follows your OS light/dark setting (prefers-color-scheme).</p>'));
+const fsBtn = document.getElementById('fs');
+const toggleFs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => { fsBtn.textContent = 'Press F11 for fullscreen'; });
+fsBtn.onclick = toggleFs;
+document.addEventListener('keydown', e => { if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) toggleFs(); });
+document.addEventListener('fullscreenchange', () => { fsBtn.textContent = document.fullscreenElement ? '✕ Exit fullscreen (Esc)' : '⛶ Fullscreen'; });
+</script>
+</body></html>
