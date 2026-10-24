@@ -350,6 +350,27 @@ public class QuillVanillaGameTests {
 	}
 
 	@GameTest(maxTicks = 20)
+	public void nearestLivingSortMatchesVanilla(GameTestHelper h) {
+		for (int x = 0; x < 9; x++) for (int z = 0; z < 9; z++) h.setBlock(x, 0, z, Blocks.STONE.defaultBlockState());
+		Villager v = h.spawn(EntityType.VILLAGER, new Vec3(4.5, 1, 4.5));
+		v.setNoAi(true);
+		// Ties on purpose: four cows at the same distance, plus a ring at another distance.
+		double[][] at = {{2.5, 4.5}, {6.5, 4.5}, {4.5, 2.5}, {4.5, 6.5}, {1.5, 1.5}, {7.5, 7.5}, {1.5, 7.5}, {7.5, 1.5}, {3.5, 4.5}, {8.5, 0.5}};
+		for (double[] p : at) h.spawn(EntityType.COW, new Vec3(p[0], 1, p[1])).setNoAi(true);
+		h.runAtTickTime(2, () -> {
+			var sensor = net.minecraft.world.entity.ai.sensing.SensorType.NEAREST_LIVING_ENTITIES.create();
+			for (int i = 0; i < 30; i++) sensor.tick(h.getLevel(), v);
+			List<net.minecraft.world.entity.LivingEntity> got = v.getBrain().getMemory(MemoryModuleType.NEAREST_LIVING_ENTITIES).orElseThrow();
+			double d = v.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.FOLLOW_RANGE);
+			List<net.minecraft.world.entity.LivingEntity> want = h.getLevel().getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+					v.getBoundingBox().inflate(d, d, d), e -> e != v && e.isAlive());
+			want.sort(java.util.Comparator.comparingDouble(v::distanceToSqr));
+			if (got.size() < at.length || !got.equals(want)) h.fail(msg("sensor " + got.size() + " " + got + " vanilla " + want));
+			h.succeed();
+		});
+	}
+
+	@GameTest(maxTicks = 20)
 	public void blockCollisionsMatchVanilla(GameTestHelper h) {
 		BlockState[] mix = {Blocks.AIR.defaultBlockState(), Blocks.AIR.defaultBlockState(), Blocks.STONE.defaultBlockState(), Blocks.STONE_SLAB.defaultBlockState(),
 				Blocks.SCAFFOLDING.defaultBlockState(), Blocks.POWDER_SNOW.defaultBlockState(), Blocks.OAK_FENCE.defaultBlockState(), Blocks.SHORT_GRASS.defaultBlockState(),
