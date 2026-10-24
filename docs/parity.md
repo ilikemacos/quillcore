@@ -16,7 +16,7 @@ impact / effort: 1 (low) to 3 (high).
 | meshing | faster block/fluid model emit, no per-quad allocs | no | 2 | 2 |
 | meshing | biome blend colour cache per section | no | 2 | 1 |
 | batching | per-region buffer arenas | part (allocator, not wired) | 3 | 3 |
-| batching | multidraw per region/pass | part (batch lists, not wired) | 3 | 2 |
+| batching | multidraw per region/pass | part (batch lists, not wired; needs region-relative positions, see below) | 3 | 2 |
 | batching | per-face index split (draw only facing sides) | no | 2 | 2 |
 | culling | section graph occlusion culling (bfs) | n/a, vanilla has SectionOcclusionGraph; a faster one is the work | 2 | 3 |
 | culling | tighter frustum test per region | no | 2 | 1 |
@@ -43,7 +43,7 @@ impact / effort: 1 (low) to 3 (high).
 | ai | secondary_poi: skip scan for jobs with no secondary poi | pr | 1 | 1 |
 | ai | sensor/task stream replacement | no | 1 | 1 |
 | ai | useless sensors (baby, goat) | no | 1 | 1 |
-| ai | nitwit job search skip | no | 1 | 1 |
+| ai | nitwit job search skip | pr #23 | 1 | 1 |
 | ai | task memory change tracking / run loop | no | 2 | 2 |
 | ai | idle mob ai / brain throttle — not vanilla-exact | yes | - | - |
 | pathing | faster path node type lookups | no | 2 | 2 |
@@ -70,7 +70,7 @@ impact / effort: 1 (low) to 3 (high).
 | chunk | palette fast path | no | 1 | 2 |
 | chunk | serialization / no_validation | no | 1 | 1 |
 | chunk | chunk ticket collections | no | 1 | 1 |
-| world gen | cached generator settings | no | 1 | 1 |
+| world gen | cached generator settings | n/a (1.21.8 reads a holder field; nothing to cache) | 1 | 1 |
 | world gen | chunk random alloc | no | 1 | 1 |
 | collections | attributes, brain, entity_by_type, mob spawning, poi types | no | 1 | 1 |
 | math | fast blockpos / util / sine lut | no | 1 | 1 |
@@ -97,17 +97,34 @@ impact / effort: 1 (low) to 3 (high).
 | mod | rows | yes | pr | part | no |
 |---|---|---|---|---|---|
 | sodium | 21 | 1 | 0 | 7 | 13 |
-| lithium | 36 | 0 | 4 | 2 | 30 |
+| lithium | 35 | 0 | 5 | 2 | 28 |
 | ferritecore | 4 | 0 | 3 | 0 | 1 |
 
 (extras that are ours only, and n/a rows, aren't counted. five ferritecore items target things 1.21.8 already fixed.)
+
+## render notes: why multidraw isn't wired yet
+
+Checked against 1.21.8 Blaze3D:
+
+- `RenderPass.Draw` has no base vertex. `GlCommandEncoder.drawFromBuffers` takes one internally, but the public path doesn't expose it.
+- `drawMultipleIndexed` issues one GL draw per entry, and it uploads the `DynamicTransforms` block (ModelOffset) per entry.
+- Our compact positions are section-local 16-bit, (p + 8) * 2048, so a draw can't span sections.
+
+Plan:
+1. Put the section's slot (0..255) in the spare bits of Position.w, next to the face index.
+2. The shader adds the slot offset, and ModelOffset becomes region origin minus camera.
+3. Compact SOLID uploads go into the region arena buffer.
+4. Each region draws through the sequential quad index buffer, using firstIndex = vertexOffset / 4 * 6 and merging touching ranges.
+5. A raw-GL glMultiDrawElements path comes after.
+
+The client has to render correctly at each step, and each step needs a G14 frame-time run.
 
 ## roadmap (impact / effort)
 
 1. chunk no_locking — pr
 2. ferrite neighbour tables — pr
 3. ferrite quad dedup — pr
-4. region multidraw on m1 compact meshes — allocator pr; gl wiring next, needs g14 run
+4. region multidraw on m1 compact meshes — allocator pr; next: region-relative vertices, then gl wiring; needs g14 run
 5. sleeping block entities — furnace/campfire pr; brewing, crafter, hopper next
 6. biome blend cache — needs g14 run
 7. skip off-screen sprite animation — needs g14 run
