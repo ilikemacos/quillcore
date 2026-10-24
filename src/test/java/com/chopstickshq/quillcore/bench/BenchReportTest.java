@@ -39,7 +39,7 @@ class BenchReportTest {
 		r.add("off", m(null, 4.5));
 		String[] lines = r.toCsv().split("\n");
 		assertEquals(BenchReport.CSV_HEADER, lines[0]);
-		assertEquals("0,off,,,,,4.500,,,,", lines[1]);
+		assertEquals("0,off,,,,,4.500,,,,,", lines[1]);
 	}
 
 	@Test

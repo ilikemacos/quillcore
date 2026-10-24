@@ -40,6 +40,17 @@ public final class QuillCoreConfigScreen {
 				.setDefaultValue(true)
 				.setSaveConsumer(v -> QuillConfig.get().renderEnabled = v)
 				.build());
+		general.addEntry(entry.startBooleanToggle(Component.literal("Compact chunk meshes (experimental)"), c.compactMeshEnabled)
+				.setDefaultValue(false)
+				.setSaveConsumer(v -> {
+					if (QuillConfig.get().compactMeshEnabled != v) {
+						QuillConfig.get().compactMeshEnabled = v;
+						net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+						if (mc.level != null) mc.levelRenderer.allChanged();
+					}
+				})
+				.setTooltip(Component.literal("Re-encode solid terrain into a 20-byte vertex format (vanilla: 32). Sections that don't fit stay vanilla."))
+				.build());
 		general.addEntry(entry.startBooleanToggle(Component.literal("Quill Logic"), c.logicEnabled)
 				.setDefaultValue(true)
 				.setSaveConsumer(v -> QuillConfig.get().logicEnabled = v)
