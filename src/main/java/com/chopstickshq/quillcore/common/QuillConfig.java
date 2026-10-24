@@ -87,8 +87,12 @@ public final class QuillConfig {
 	public boolean frameGenEnabled = false;
 
 	public boolean benchEnabled = false;
-	/** Bench-only: record synthetic section vertex footprint (vanilla vs compact) per bench segment. Never touches live rendering. */
-	public boolean vertexFootprintSampleEnabled = true;
+	/**
+	 * Experimental (M1): re-encode SOLID chunk-section meshes into the 20 B/vertex Quill format and draw them with
+	 * the quill_solid pipeline. Default off. Sections that don't fit the format stay vanilla. Changing it needs a
+	 * section rebuild (the config screen / bench call {@code LevelRenderer.allChanged()}).
+	 */
+	public boolean compactMeshEnabled = false;
 
 	private QuillConfig() {}
 
@@ -218,7 +222,11 @@ public final class QuillConfig {
 		}
 		// No working frame-gen backend, keep generic flag off. fsrFrameGenEnabled may be stored but is ignored.
 		frameGenEnabled = false;
-		// vertexFootprintSampleEnabled: boolean, nothing to clamp.
+	}
+
+	/** Compact meshing is in effect only when the master and render switches are also on. */
+	public boolean compactMeshActive() {
+		return masterEnabled && renderEnabled && compactMeshEnabled;
 	}
 
 	public String statusSummary() {
@@ -238,6 +246,7 @@ public final class QuillConfig {
 				+ " fsrPreset=" + fsrQualityPreset
 				+ " fsrFG=" + fsrFrameGenEnabled
 				+ " frameGen=" + frameGenEnabled
+				+ " compactMesh=" + compactMeshEnabled
 				+ " bench=" + benchEnabled;
 	}
 }

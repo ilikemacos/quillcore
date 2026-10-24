@@ -13,6 +13,7 @@ public final class QuillCoreClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		FsrController.bootstrap();
+		com.chopstickshq.quillcore.render.compact.QuillTerrainPipeline.bootstrap();
 		WorldRenderEvents.END.register(context -> {
 			if (!(QuillConfig.get().benchEnabled || BenchHarness.isRunning())) {
 				lastFrameNs = 0L;

@@ -5,7 +5,8 @@ import com.chopstickshq.quillcore.bench.BenchMetrics;
 import com.chopstickshq.quillcore.bench.BenchReport;
 import com.chopstickshq.quillcore.common.QuillConfig;
 import com.chopstickshq.quillcore.common.QuillCore;
-import com.chopstickshq.quillcore.render.mesh.SectionFootprintSampler;
+import com.chopstickshq.quillcore.render.mesh.QuillMeshStats;
+import net.minecraft.client.Screenshot;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -40,11 +41,8 @@ public final class QuillAutoBench implements ClientModInitializer {
 	public static volatile boolean ACTIVE;
 	private int unfocusedTicks, iconifiedTicks;
 	private int segment = -1;
-	private int segmentStart;
 	private boolean done;
 	private final BenchReport report = new BenchReport();
-	/** Computed once per run; synthetic, so identical for on/off segments. */
-	private SectionFootprintSampler.Footprint footprint;
 
 	@Override
 	public void onInitializeClient() {
@@ -87,41 +85,199 @@ public final class QuillAutoBench implements ClientModInitializer {
 		}
 		if (mc.screen != null && mc.screen.isPauseScreen()) mc.setScreen(null);
 		inWorldTicks++;
-		mc.player.setYRot(mc.player.getYRot() + 0.75f);
-		if (inWorldTicks < WARMUP_TICKS) return;
-		int t = inWorldTicks - WARMUP_TICKS;
-		int idx = t / segTicks;
-		if (segment >= 0) {
+		if (inWorldTicks < WARMUP_TICKS) {
+			mc.player.setYRot(mc.player.getYRot() + 0.75f);
+			return;
+		}
+		if (segment >= 0 && measuring) {
 			if (!mc.isWindowActive()) unfocusedTicks++;
 			if (mc.getWindow().isIconified()) iconifiedTicks++;
 		}
-		if (idx != segment) {
-			if (segment >= 0) {
-				BenchHarness.stop();
-				BenchMetrics m = BenchHarness.snapshot();
-				if (QuillConfig.get().vertexFootprintSampleEnabled) {
-					if (footprint == null) footprint = SectionFootprintSampler.sampleSolidSectionShell();
-					m.vanillaVertexBytes = footprint.vanillaBytes();
-					m.quillVertexBytes = footprint.quillBytes();
-					m.vertexByteReductionPct = footprint.reductionPct();
-					m.notes = m.notes + "; vertex-footprint-only; live mesh path unchanged";
-				}
-				report.add(SEGMENTS[segment], m, BenchHarness.frameSamplesCopy());
-				QuillCore.LOGGER.info("[quill-bench] {} -> {}", SEGMENTS[segment], BenchHarness.report());
-			}
-			segment = idx;
+		// Phase 1: fixed-camera mesh compare (vanilla SOLID mesh vs Quill compact SOLID mesh, everything else equal).
+		if (compareStep < COMPARE_SHOTS.length) {
+			compareTick(mc);
+			return;
+		}
+		if (pendingShots > 0) return;
+		mc.player.setYRot(mc.player.getYRot() + 0.75f);
+		if (segment < 0 || (measuring && ++segTick >= segTicks)) {
+			if (segment >= 0) endSegment();
+			segment++;
 			if (segment >= SEGMENTS.length) {
 				finish(mc, null);
 				return;
 			}
-			QuillConfig.get().masterEnabled = "on".equals(SEGMENTS[segment]);
-			BenchHarness.start(SEGMENTS[segment]);
+			boolean on = "on".equals(SEGMENTS[segment]);
+			QuillConfig.get().masterEnabled = on;
+			QuillConfig.get().compactMeshEnabled = on;
+			QuillMeshStats.reset();
+			mc.levelRenderer.allChanged();
+			measuring = false;
+			settledTicks = 0;
+			waitTicks = 0;
+			return;
 		}
+		if (!measuring) {
+			if (settled(mc) || ++waitTicks > REBUILD_TIMEOUT_TICKS) {
+				measuring = true;
+				segTick = 0;
+				segRebuildTicks = waitTicks;
+				BenchHarness.start(SEGMENTS[segment]);
+			}
+		}
+	}
+
+	private static final String[] COMPARE_SHOTS = {"vanilla-mesh", "quill-mesh"};
+	private static final int REBUILD_TIMEOUT_TICKS = 20 * 30;
+	private int compareStep;
+	private int compareTicks;
+	private volatile int pendingShots;
+	private boolean measuring;
+	private int segTick, settledTicks, waitTicks, segRebuildTicks;
+	private final int[][] shots = new int[COMPARE_SHOTS.length][];
+	private final int[] shotW = new int[COMPARE_SHOTS.length];
+	private Double meanAbsRgbDiff;
+	private double maxChannelDiffShare;
+	private QuillMeshStats.Snapshot compareStats;
+	private final java.util.List<String> segmentStats = new java.util.ArrayList<>();
+	private final java.util.Map<String, QuillMeshStats.Snapshot> statsByLabel = new java.util.LinkedHashMap<>();
+
+	/** All visible sections compiled and uploaded for {@code 20} consecutive ticks. */
+	private boolean settled(Minecraft mc) {
+		var d = mc.levelRenderer.getSectionRenderDispatcher();
+		boolean idle = d != null && d.isQueueEmpty() && d.getToUpload() == 0 && mc.levelRenderer.hasRenderedAllSections();
+		settledTicks = idle ? settledTicks + 1 : 0;
+		return settledTicks >= 20;
+	}
+
+	private void compareTick(Minecraft mc) {
+		if (compareTicks == 0) {
+			if (compareStep == 0) {
+				savedClouds = mc.options.cloudStatus().get();
+				mc.options.cloudStatus().set(net.minecraft.client.CloudStatus.OFF);
+			}
+			mc.player.setYRot(COMPARE_YAW);
+			mc.player.setXRot(COMPARE_PITCH);
+			QuillConfig.get().masterEnabled = true;
+			QuillConfig.get().compactMeshEnabled = compareStep == 1;
+			QuillMeshStats.reset();
+			mc.levelRenderer.allChanged();
+			settledTicks = 0;
+		}
+		compareTicks++;
+		mc.player.setYRot(COMPARE_YAW);
+		mc.player.setXRot(COMPARE_PITCH);
+		if (!(settled(mc) || compareTicks > REBUILD_TIMEOUT_TICKS)) return;
+		int step = compareStep;
+		if (step == 1) compareStats = QuillMeshStats.snapshot();
+		pendingShots++;
+		Screenshot.takeScreenshot(mc.getMainRenderTarget(), img -> {
+			shots[step] = img.getPixels();
+			shotW[step] = img.getWidth();
+			try {
+				Path dir = outDir().resolve("screens");
+				java.nio.file.Files.createDirectories(dir);
+				img.writeToFile(dir.resolve(COMPARE_SHOTS[step] + ".png"));
+			} catch (Exception e) {
+				QuillCore.LOGGER.error("[quill-bench] screenshot write failed", e);
+			}
+			if (shots[0] != null && shots[1] != null) computeDiff();
+			pendingShots--;
+		});
+		compareStep++;
+		compareTicks = 0;
+		if (compareStep == COMPARE_SHOTS.length) {
+			mc.options.cloudStatus().set(savedClouds);
+		}
+	}
+
+	private static final float COMPARE_YAW = 45f, COMPARE_PITCH = 20f;
+	private net.minecraft.client.CloudStatus savedClouds = net.minecraft.client.CloudStatus.FANCY;
+
+	private void computeDiff() {
+		int[] a = shots[0], b = shots[1];
+		if (a.length != b.length || shotW[0] != shotW[1]) return;
+		long sum = 0, big = 0, n = 0;
+		{
+			for (int i = 0; i < a.length; i++) {
+				int pa = a[i], pb = b[i];
+				for (int sh = 0; sh <= 16; sh += 8) {
+					int d = Math.abs(((pa >> sh) & 0xFF) - ((pb >> sh) & 0xFF));
+					sum += d;
+					if (d > 16) big++;
+					n++;
+				}
+			}
+		}
+		meanAbsRgbDiff = (double) sum / n;
+		maxChannelDiffShare = (double) big / n;
+		QuillCore.LOGGER.info("[quill-bench] mesh compare: meanAbsRgbDiff={} /255, channels >16 off={}%",
+				String.format("%.3f", meanAbsRgbDiff), String.format("%.3f", maxChannelDiffShare * 100));
+	}
+
+	private static Path outDir() {
+		return Path.of(System.getProperty("quillcore.autobench.out", "quill-test-report"));
+	}
+
+	private void endSegment() {
+		BenchHarness.stop();
+		BenchMetrics m = BenchHarness.snapshot();
+		QuillMeshStats.Snapshot st = QuillMeshStats.snapshot();
+		m.vanillaVertexBytes = st.vanillaBytes();
+		m.quillVertexBytes = st.builtBytes();
+		m.vertexByteReductionPct = st.reductionPct();
+		m.notes = m.notes + "; live SOLID bytes (summed compiled sections); quillSections=" + st.quillSections()
+				+ " fallbackSections=" + st.fallbackSections() + " rebuildTicks=" + segRebuildTicks;
+		statsByLabel.merge(SEGMENTS[segment], st, (x, y) -> new QuillMeshStats.Snapshot(x.quillSections() + y.quillSections(),
+				x.fallbackSections() + y.fallbackSections(), x.vanillaBytes() + y.vanillaBytes(), x.builtBytes() + y.builtBytes()));
+		report.add(SEGMENTS[segment], m, BenchHarness.frameSamplesCopy());
+		QuillCore.LOGGER.info("[quill-bench] {} -> {}", SEGMENTS[segment], BenchHarness.report());
+		segAvg.computeIfAbsent(SEGMENTS[segment], k -> new java.util.ArrayList<>()).add(new double[]{
+				m.avgFps == null ? Double.NaN : m.avgFps, m.pct1LowFps == null ? Double.NaN : m.pct1LowFps,
+				m.pct01LowFps == null ? Double.NaN : m.pct01LowFps});
+	}
+
+	private final java.util.Map<String, java.util.List<double[]>> segAvg = new java.util.HashMap<>();
+
+	private double mean(String label, int k) {
+		return segAvg.getOrDefault(label, java.util.List.of()).stream().mapToDouble(v -> v[k]).average().orElse(Double.NaN);
+	}
+
+	/** M1 gate; returns a one-line summary, also written to gate.json. */
+	private String gate() {
+		double onAvg = mean("on", 0), offAvg = mean("off", 0), on1 = mean("on", 1), off1 = mean("off", 1), on01 = mean("on", 2), off01 = mean("off", 2);
+		QuillMeshStats.Snapshot on = statsByLabel.get("on");
+		double bytesPct = on == null ? 0 : on.reductionPct();
+		boolean gAvg = onAvg >= offAvg * 0.98, g1 = on1 >= off1 * 0.95, gBytes = bytesPct >= 30.0,
+				gImg = meanAbsRgbDiff != null && meanAbsRgbDiff <= 3.0;
+		boolean pass = gAvg && g1 && gBytes && gImg;
+		String json = String.format(java.util.Locale.ROOT,
+				"{\"pass\": %b, \"avgFps\": {\"on\": %.2f, \"off\": %.2f, \"pass\": %b},"
+						+ " \"pct1Low\": {\"on\": %.2f, \"off\": %.2f, \"pass\": %b},"
+						+ " \"pct01Low\": {\"on\": %.2f, \"off\": %.2f},"
+						+ " \"solidBytes\": {\"vanilla\": %d, \"built\": %d, \"reductionPct\": %.2f, \"quillSections\": %d, \"fallbackSections\": %d, \"pass\": %b},"
+						+ " \"meshCompare\": {\"meanAbsRgbDiff\": %s, \"channelsOver16Pct\": %.4f, \"compareQuillSections\": %d, \"compareFallbackSections\": %d, \"pass\": %b}}",
+				pass, onAvg, offAvg, gAvg, on1, off1, g1, on01, off01,
+				on == null ? 0 : on.vanillaBytes(), on == null ? 0 : on.builtBytes(), bytesPct,
+				on == null ? 0 : on.quillSections(), on == null ? 0 : on.fallbackSections(), gBytes,
+				meanAbsRgbDiff == null ? "null" : String.format(java.util.Locale.ROOT, "%.4f", meanAbsRgbDiff), maxChannelDiffShare * 100,
+				compareStats == null ? 0 : compareStats.quillSections(), compareStats == null ? 0 : compareStats.fallbackSections(), gImg);
+		try {
+			java.nio.file.Files.createDirectories(outDir());
+			java.nio.file.Files.writeString(outDir().resolve("gate.json"), json + "\n");
+		} catch (Exception e) {
+			QuillCore.LOGGER.error("[quill-bench] gate.json write failed", e);
+		}
+		QuillCore.LOGGER.info("[quill-bench] gate -> {}", json);
+		return String.format(java.util.Locale.ROOT, "gate=%s(avg %b, 1%%low %b, bytes %.1f%% %b, img %s %b)", pass ? "PASS" : "FAIL",
+				gAvg, g1, bytesPct, gBytes, meanAbsRgbDiff == null ? "n/a" : String.format(java.util.Locale.ROOT, "%.3f", meanAbsRgbDiff), gImg);
 	}
 
 	private void finish(Minecraft mc, String error) {
 		done = true;
+		String gateLine = error == null ? gate() : "gate=n/a";
 		QuillConfig.get().masterEnabled = true;
+		QuillConfig.get().compactMeshEnabled = false;
 		String gpu = "unknown";
 		String glVersion = "unknown";
 		try {
@@ -133,9 +289,9 @@ public final class QuillAutoBench implements ClientModInitializer {
 		report.environment((error == null ? "" : "ERROR " + error + "; ") + "gpu=" + gpu + "; os="
 				+ System.getProperty("os.name") + "; java=" + System.getProperty("java.version")
 				+ "; resolution=" + mc.getWindow().getWidth() + "x" + mc.getWindow().getHeight()
-				+ "; fullscreen=" + mc.getWindow().isFullscreen() + "; segmentSeconds=" + segTicks / 20 + "; seed=20261023; renderDistance=12; vsync=off; cap=unlimited; throttling=disabled; unfocusedTicks=" + unfocusedTicks + "; iconifiedTicks=" + iconifiedTicks);
+				+ "; fullscreen=" + mc.getWindow().isFullscreen() + "; segmentSeconds=" + segTicks / 20 + "; seed=20261023; renderDistance=12; vsync=off; cap=unlimited; throttling=disabled; unfocusedTicks=" + unfocusedTicks + "; iconifiedTicks=" + iconifiedTicks + "; " + gateLine);
 		try {
-			Path out = Path.of(System.getProperty("quillcore.autobench.out", "quill-test-report"));
+			Path out = outDir();
 			report.write(out);
 			QuillCore.LOGGER.info("[quill-bench] wrote {}", out.toAbsolutePath());
 		} catch (Exception e) {

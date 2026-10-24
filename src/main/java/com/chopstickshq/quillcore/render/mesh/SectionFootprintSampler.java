@@ -5,7 +5,7 @@ import java.util.List;
 
 /**
  * Measures vanilla vs compact byte footprint for a set of section vertices by actually encoding each one.
- * Synthetic input only in M1 slice 1 — real built-section accounting is a later slice.
+ * Synthetic input; unit tests only. Live built-section accounting is {@link QuillMeshStats}.
  */
 public final class SectionFootprintSampler {
 	public record Footprint(long vertexCount, long vanillaBytes, long quillBytes, double reductionPct) {}
@@ -40,7 +40,7 @@ public final class SectionFootprintSampler {
 						float x = axis == 0 ? fixed : da;
 						float y = axis == 1 ? fixed : (axis == 0 ? da : db);
 						float z = axis == 2 ? fixed : db;
-						out.add(new QuillCompactVertex(x, y, z, face, da / 16f, db / 16f, 0, 15));
+						out.add(new QuillCompactVertex(x, y, z, face, 0xFFFFFFFF, da / 16f, db / 16f, (short) 0, (short) 240));
 					}
 				}
 			}
