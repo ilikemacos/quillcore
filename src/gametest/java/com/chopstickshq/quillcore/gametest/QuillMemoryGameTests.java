@@ -73,4 +73,31 @@ public class QuillMemoryGameTests {
 		}
 		h.succeed();
 	}
+
+	/** Shared collision shapes must cover exactly what the block computes fresh, for every state. */
+	@GameTest
+	public void sharedShapesMatchFreshOnes(GameTestHelper h) throws ReflectiveOperationException {
+		// protected in vanilla; dev runtime keeps mojang names
+		java.lang.reflect.Method compute = net.minecraft.world.level.block.state.BlockBehaviour.class.getDeclaredMethod("getCollisionShape",
+				BlockState.class, net.minecraft.world.level.BlockGetter.class, net.minecraft.core.BlockPos.class, net.minecraft.world.phys.shapes.CollisionContext.class);
+		compute.setAccessible(true);
+		int checked = 0;
+		for (Block block : BuiltInRegistries.BLOCK) {
+			for (BlockState s : block.getStateDefinition().getPossibleStates()) {
+				net.minecraft.world.phys.shapes.VoxelShape cached = s.getCollisionShape(net.minecraft.world.level.EmptyBlockGetter.INSTANCE, net.minecraft.core.BlockPos.ZERO);
+				net.minecraft.world.phys.shapes.VoxelShape fresh = (net.minecraft.world.phys.shapes.VoxelShape) compute.invoke(s.getBlock(), s,
+						net.minecraft.world.level.EmptyBlockGetter.INSTANCE, net.minecraft.core.BlockPos.ZERO, net.minecraft.world.phys.shapes.CollisionContext.empty());
+				if (net.minecraft.world.phys.shapes.Shapes.joinIsNotEmpty(cached, fresh, net.minecraft.world.phys.shapes.BooleanOp.NOT_SAME)) {
+					h.fail(Component.literal("collision shape differs for " + s));
+				}
+				checked++;
+			}
+		}
+		h.assertTrue(checked > 10_000, Component.literal("only checked " + checked));
+		{
+			h.assertTrue(com.chopstickshq.quillcore.memory.ShapeInterner.unique() < com.chopstickshq.quillcore.memory.ShapeInterner.seen() / 4,
+					Component.literal("shapes not shared: " + com.chopstickshq.quillcore.memory.ShapeInterner.unique() + " of " + com.chopstickshq.quillcore.memory.ShapeInterner.seen()));
+		}
+		h.succeed();
+	}
 }
