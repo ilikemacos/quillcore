@@ -15,10 +15,10 @@ impact / effort: 1 (low) to 3 (high).
 | meshing | compact terrain vertex format | part (solid layer, m1) | 3 | 2 |
 | meshing | faster block/fluid model emit, no per-quad allocs | no | 2 | 2 |
 | meshing | biome blend colour cache per section | no | 2 | 1 |
-| batching | per-region buffer arenas | no | 3 | 3 |
-| batching | multidraw per region/pass | no | 3 | 2 |
+| batching | per-region buffer arenas | part (allocator, not wired) | 3 | 3 |
+| batching | multidraw per region/pass | part (batch lists, not wired) | 3 | 2 |
 | batching | per-face index split (draw only facing sides) | no | 2 | 2 |
-| culling | section graph occlusion culling (bfs) | no (vanilla) | 3 | 3 |
+| culling | section graph occlusion culling (bfs) | n/a, vanilla has SectionOcclusionGraph; a faster one is the work | 2 | 3 |
 | culling | tighter frustum test per region | no | 2 | 1 |
 | culling | block face culling cache | no | 1 | 2 |
 | translucency | per-section translucent sorting off-thread | no | 2 | 3 |
@@ -58,7 +58,7 @@ impact / effort: 1 (low) to 3 (high).
 | entities | elytra / powder snow / sprint particle checks | no | 1 | 1 |
 | entities | projectile collisions | no | 1 | 1 |
 | entities | item merge — vanilla-exact | part (throttle, not exact) | 2 | 2 |
-| block ticks | sleeping block entities (furnace, hopper, campfire, brewing, crafter, chest) | no | 3 | 2 |
+| block ticks | sleeping block entities (furnace, hopper, campfire, brewing, crafter, chest) | pr (furnace, campfire early-out) | 3 | 2 |
 | block ticks | block entity ticker collections | no | 1 | 1 |
 | block ticks | fluid flow caching | no | 2 | 2 |
 | hoppers | inventory change tracking, no entity scan when idle | no | 3 | 3 |
@@ -84,35 +84,35 @@ impact / effort: 1 (low) to 3 (high).
 |---|---|---|---|
 | shared neighbour tables for block states (replaces per-state map) | pr | 3 | 2 |
 | baked quad vertex dedup | pr | 2 | 1 |
-| property value condition optionals | no | 1 | 1 |
-| multipart predicate cache | no | 2 | 2 |
-| blockstate property map: fast map instead of immutable map | no | 2 | 2 |
-| resource location dedup | no | 1 | 1 |
-| model side cache sharing | no | 1 | 1 |
-| compact shapes for simple blocks | no | 1 | 2 |
-| chunk nbt / misc small allocs | no | 1 | 1 |
+| property value condition optionals | n/a (class gone in 1.21.8) | - | - |
+| multipart predicate cache | n/a (1.21.8 builds predicates once per block) | - | - |
+| blockstate property map: fast map instead of immutable map | n/a (1.21.8 uses a small array map) | - | - |
+| model resource location strings | n/a (block models no longer keyed by MRL) | - | - |
+| multipart model instances shared | n/a (vanilla shares baked state) | - | - |
+| blockstate shape cache dedup | pr | 2 | 1 |
+| nbt of partially loaded chunks | no | 1 | 2 |
 
 ## counts
 
 | mod | rows | yes | pr | part | no |
 |---|---|---|---|---|---|
-| sodium | 22 | 1 | 0 | 5 | 16 |
-| lithium | 36 | 0 | 3 | 2 | 31 |
-| ferritecore | 9 | 0 | 2 | 0 | 7 |
+| sodium | 21 | 1 | 0 | 7 | 13 |
+| lithium | 36 | 0 | 4 | 2 | 30 |
+| ferritecore | 4 | 0 | 3 | 0 | 1 |
 
-(extras that are ours only, and n/a rows, aren't counted.)
+(extras that are ours only, and n/a rows, aren't counted. five ferritecore items target things 1.21.8 already fixed.)
 
 ## roadmap (impact / effort)
 
 1. chunk no_locking — pr
 2. ferrite neighbour tables — pr
 3. ferrite quad dedup — pr
-4. region multidraw on m1 compact meshes — needs g14 run
-5. sleeping block entities (furnace, hopper, campfire first)
+4. region multidraw on m1 compact meshes — allocator pr; gl wiring next, needs g14 run
+5. sleeping block entities — furnace/campfire pr; brewing, crafter, hopper next
 6. biome blend cache — needs g14 run
 7. skip off-screen sprite animation — needs g14 run
 8. entity / block entity / particle frustum culling — needs g14 run
-9. section graph occlusion culling — needs g14 run
+9. faster section graph (vanilla already culls) — needs g14 run
 10. hopper inventory tracking
 
 Then: off-thread meshing, entity class groups, collision fast path, shape caches, translucent sorting.
