@@ -10,6 +10,7 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.schedule.Activity;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -22,12 +23,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(Villager.class)
 public abstract class VillagerBrainThrottleMixin {
+	@Unique
+	private boolean quillcore$skipBrain;
+	@Unique
+	private int quillcore$brainSkips;
+	@Unique
+	private int quillcore$brainSkipsEpoch;
+
+	@Unique
+	private int quillcore$consecutiveBrainSkips() {
+		return quillcore$brainSkipsEpoch == BrainIdleThrottleState.epoch() ? quillcore$brainSkips : 0;
+	}
+
 	@Inject(method = "customServerAiStep", at = @At("HEAD"))
 	private void quillcore$beginBrainThrottle(ServerLevel serverLevel, CallbackInfo ci) {
 		Villager self = (Villager) (Object) this;
 		QuillConfig cfg = QuillConfig.get();
-		Player nearest = self.level().getNearestPlayer(self, cfg.brainIdleThrottlePlayerRadiusBlocks);
-		double distSq = nearest == null ? Double.POSITIVE_INFINITY : nearest.distanceToSqr(self);
+		double distSq = Double.POSITIVE_INFINITY;
+		if (cfg.masterEnabled && cfg.logicEnabled && cfg.brainIdleThrottleEnabled) {
+			Player nearest = self.level().getNearestPlayer(self, cfg.brainIdleThrottlePlayerRadiusBlocks);
+			if (nearest != null) distSq = nearest.distanceToSqr(self);
+		}
 		boolean panicking = self.getBrain().isActive(Activity.PANIC) || self.getBrain().isActive(Activity.HIDE);
 		boolean skip = BrainIdleThrottle.shouldSkipBrainTick(
 				cfg.masterEnabled,
@@ -40,16 +56,16 @@ public abstract class VillagerBrainThrottleMixin {
 				self.isAlive(),
 				self.hurtTime,
 				panicking,
-				BrainIdleThrottleState.consecutiveSkips(self.getId())
+				quillcore$consecutiveBrainSkips()
 		);
-		BrainIdleThrottleState.beginTick(skip);
+		quillcore$skipBrain = skip;
 	}
 
 	@Inject(method = "customServerAiStep", at = @At("RETURN"))
 	private void quillcore$endBrainThrottle(ServerLevel serverLevel, CallbackInfo ci) {
-		Villager self = (Villager) (Object) this;
-		boolean skipped = BrainIdleThrottleState.shouldSkipBrain();
-		BrainIdleThrottleState.endTick(self.getId(), skipped);
+		quillcore$brainSkips = com.chopstickshq.quillcore.logic.IdleAiThrottle.nextConsecutiveSkips(quillcore$skipBrain, quillcore$consecutiveBrainSkips());
+		quillcore$brainSkipsEpoch = BrainIdleThrottleState.epoch();
+		quillcore$skipBrain = false;
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -61,7 +77,7 @@ public abstract class VillagerBrainThrottleMixin {
 			)
 	)
 	private void quillcore$maybeSkipBrainTick(Brain brain, ServerLevel level, LivingEntity entity) {
-		if (!BrainIdleThrottleState.shouldSkipBrain()) {
+		if (!quillcore$skipBrain) {
 			brain.tick(level, entity);
 		}
 	}
