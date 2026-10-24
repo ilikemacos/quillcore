@@ -155,6 +155,7 @@ public final class QuillAutoBench implements ClientModInitializer {
 			if (compareStep == 0) {
 				savedClouds = mc.options.cloudStatus().get();
 				mc.options.cloudStatus().set(net.minecraft.client.CloudStatus.OFF);
+				freezeSky(mc);
 			}
 			mc.player.setYRot(COMPARE_YAW);
 			mc.player.setXRot(COMPARE_PITCH);
@@ -189,6 +190,19 @@ public final class QuillAutoBench implements ClientModInitializer {
 		if (compareStep == COMPARE_SHOTS.length) {
 			mc.options.cloudStatus().set(savedClouds);
 		}
+	}
+
+	/** Both shots must see the same sun and weather, or the daylight drift between them shows up as mesh error. */
+	private static void freezeSky(Minecraft mc) {
+		var server = mc.getSingleplayerServer();
+		if (server == null) return;
+		server.execute(() -> {
+			var level = server.overworld();
+			level.getGameRules().getRule(net.minecraft.world.level.GameRules.RULE_DAYLIGHT).set(false, server);
+			level.getGameRules().getRule(net.minecraft.world.level.GameRules.RULE_WEATHER_CYCLE).set(false, server);
+			level.setDayTime(6000);
+			level.setWeatherParameters(6000, 0, false, false);
+		});
 	}
 
 	private static final float COMPARE_YAW = 45f, COMPARE_PITCH = 20f;
