@@ -2,6 +2,7 @@ package com.chopstickshq.quillcore.client;
 
 import com.chopstickshq.quillcore.common.QuillConfig;
 import com.chopstickshq.quillcore.compat.CompatStatus;
+import com.chopstickshq.quillcore.csr.client.CsrController;
 import com.chopstickshq.quillcore.framefx.FrameFxLauncher;
 import com.chopstickshq.quillcore.upscale.UpscaleRegistry;
 import com.chopstickshq.quillcore.upscale.fsr.FsrController;
@@ -180,6 +181,22 @@ public final class QuillCoreConfigScreen {
 				.setDefaultValue(0.0f).setMin(0.0f).setMax(1.0f)
 				.setSaveConsumer(v -> QuillConfig.get().fsrRenderScaleOverride = v)
 				.setTooltip(Component.literal("0 uses the preset. 1 turns upscaling off."))
+				.build());
+
+		ConfigCategory csr = builder.getOrCreateCategory(Component.literal("CSR (optional)"));
+		csr.addEntry(entry.startTextDescription(Component.literal(
+				"Optional add-on, off by default. Models from Universal-FrameFX (MIT). Runtime: "
+						+ CsrController.runtimeStatus() + ". See docs/csr.md."
+		)).build());
+		csr.addEntry(entry.startBooleanToggle(Component.literal("CSR Flux (2x upscale)"), c.csrFlux)
+				.setDefaultValue(false)
+				.setSaveConsumer(v -> QuillConfig.get().csrFlux = v)
+				.setTooltip(Component.literal("Renders the world at half width and height, then upscales 2x with a small neural network. HUD stays native. Cannot be combined with the FSR1 upscale backend."))
+				.build());
+		csr.addEntry(entry.startBooleanToggle(Component.literal("CSR Frame Gen (interpolated frames)"), c.csrFrameGen)
+				.setDefaultValue(false)
+				.setSaveConsumer(v -> QuillConfig.get().csrFrameGen = v)
+				.setTooltip(Component.literal("Shows an interpolated frame between each pair of real frames. Adds at least one real frame of input latency. Does not raise the game's real FPS; F3 still shows the real render rate."))
 				.build());
 
 		ConfigCategory framefx = builder.getOrCreateCategory(Component.literal("FrameFX launcher"));

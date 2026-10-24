@@ -3,6 +3,8 @@
 ## Unreleased
 
 - QuillCore no longer loads next to Sodium
+- Optional CSR Flux upscaling and CSR Frame Gen, off by default (see docs/csr.md)
+- Config version 6
 
 ## 0.4.0 (2026-10-22)
 

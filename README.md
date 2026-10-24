@@ -24,6 +24,8 @@ Client (Quill Render):
 
 There is also a launcher for [Universal-FrameFX](https://github.com/ilikemacos/universal-framefx) on Windows. It runs as a separate app.
 
+Two optional CSR features, both off by default, are described in [docs/csr.md](docs/csr.md). CSR Flux upscales 2x with a small neural network. CSR Frame Gen inserts an interpolated frame between real frames and adds about a frame of latency. The model weights are from [Universal-FrameFX](https://github.com/ilikemacos/universal-framefx) (MIT), see `third_party/universal-framefx/`.
+
 Defaults are conservative. `masterEnabled`, `renderEnabled` and `logicEnabled` turn whole groups off.
 
 ## Install
