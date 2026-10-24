@@ -69,7 +69,7 @@ export default async function handler(req, res) {
       blobs = blobs.filter(b => !HIDDEN.has(b.pathname.slice(6, -5)));
       blobs.sort((a, b) => b.pathname.localeCompare(a.pathname));
       const runs = await Promise.all(blobs.slice(0, 100).map(b => fetch(b.url, { cache: 'no-store' }).then(r => r.json()).then(x => {
-        if (x && x.benchValid && !GPU_RE.test(x.gpu || '')) { x.benchValid = false; if (x.overall === 'pass') x.overall = 'invalid'; }
+        if (x && x.benchValid !== false && (x.benchValid || x.avgFps) && !GPU_RE.test(x.gpu || '')) { x.benchValid = false; if (x.overall === 'pass') x.overall = 'invalid'; }
         return x;
       }).catch(() => null)));
       return res.status(200).json({ runs: runs.filter(Boolean) });
