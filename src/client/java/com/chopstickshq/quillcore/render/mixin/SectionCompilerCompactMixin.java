@@ -4,6 +4,11 @@ import com.chopstickshq.quillcore.common.QuillConfig;
 import com.chopstickshq.quillcore.render.compact.QuillMeshData;
 import com.chopstickshq.quillcore.render.mesh.QuillMeshStats;
 import com.chopstickshq.quillcore.render.mesh.QuillSectionTranscoder;
+import com.chopstickshq.quillcore.render.region.RegionPos;
+import com.mojang.blaze3d.vertex.VertexSorting;
+import net.minecraft.client.renderer.SectionBufferBuilderPack;
+import net.minecraft.client.renderer.chunk.RenderSectionRegion;
+import net.minecraft.core.SectionPos;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -24,7 +29,8 @@ import java.nio.ByteOrder;
 @Mixin(SectionCompiler.class)
 public abstract class SectionCompilerCompactMixin {
 	@Inject(method = "compile", at = @At("RETURN"))
-	private void quillcore$compactSolid(CallbackInfoReturnable<SectionCompiler.Results> cir) {
+	private void quillcore$compactSolid(SectionPos pos, RenderSectionRegion region, VertexSorting sorting, SectionBufferBuilderPack pack,
+			CallbackInfoReturnable<SectionCompiler.Results> cir) {
 		SectionCompiler.Results results = cir.getReturnValue();
 		MeshData mesh = results.renderedLayers.get(ChunkSectionLayer.SOLID);
 		if (mesh == null) return;
@@ -32,7 +38,7 @@ public abstract class SectionCompilerCompactMixin {
 		boolean quill = false;
 		if (QuillConfig.get().compactMeshActive() && state.format() == DefaultVertexFormat.BLOCK && state.mode() == VertexFormat.Mode.QUADS && mesh.indexBuffer() == null) {
 			ByteBuffer buf = mesh.vertexBuffer().order(ByteOrder.nativeOrder());
-			quill = QuillSectionTranscoder.transcodeInPlace(buf, state.vertexCount());
+			quill = QuillSectionTranscoder.transcodeInPlace(buf, state.vertexCount(), RegionPos.slot(pos.x(), pos.y(), pos.z()));
 		}
 		if (quill) results.renderedLayers.put(ChunkSectionLayer.SOLID, new QuillMeshData(mesh));
 		QuillMeshStats.recordSolid(state.vertexCount(), quill);

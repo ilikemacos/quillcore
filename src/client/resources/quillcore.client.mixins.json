@@ -12,7 +12,8 @@
 		"SectionCompilerCompactMixin",
 		"CompiledSectionMeshTagMixin",
 		"GpuBufferTagMixin",
-		"ChunkSectionsSplitDrawMixin"
+		"ChunkSectionsSplitDrawMixin",
+		"LevelRendererRegionOffsetMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

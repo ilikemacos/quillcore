@@ -31,6 +31,24 @@ class QuillSectionTranscoderTest {
 	}
 
 	@Test
+	void slotRidesNextToTheFace() {
+		ByteBuffer b = upQuad(2);
+		assertTrue(QuillSectionTranscoder.transcodeInPlace(b, 8, 201));
+		for (int i = 0; i < 8; i++) {
+			int w = b.getShort(i * QuillCompactVertex.BYTES + 6);
+			assertEquals(201, QuillCompactVertex.slotOf(w));
+			assertEquals(2, QuillCompactVertex.faceOf(w));
+		}
+		assertEquals(2, QuillCompactVertex.decode(b, 0).face());
+		assertEquals(5f, QuillCompactVertex.decode(b, 0).y(), 1e-3);
+	}
+
+	@Test
+	void slotOutOfRangeIsRejected() {
+		assertThrows(IllegalArgumentException.class, () -> QuillSectionTranscoder.transcodeInPlace(upQuad(1), 4, 256));
+	}
+
+	@Test
 	void transcodesAxisAlignedQuadsPreservingEveryField() {
 		ByteBuffer b = upQuad(3);
 		assertTrue(QuillSectionTranscoder.transcodeInPlace(b, 12));

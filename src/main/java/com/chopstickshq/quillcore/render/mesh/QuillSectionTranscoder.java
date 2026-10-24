@@ -27,6 +27,15 @@ public final class QuillSectionTranscoder {
 	 *         false if the mesh must stay vanilla (buffer unchanged)
 	 */
 	public static boolean transcodeInPlace(ByteBuffer buf, int vertexCount) {
+		return transcodeInPlace(buf, vertexCount, 0);
+	}
+
+	/**
+	 * As {@link #transcodeInPlace(ByteBuffer, int)}, tagging every vertex with the section's slot in its region
+	 * (0..255, see {@code RegionPos.slot}) so the shader can place it relative to the region origin.
+	 */
+	public static boolean transcodeInPlace(ByteBuffer buf, int vertexCount, int slot) {
+		if (slot < 0 || slot > QuillCompactVertex.MAX_SLOT) throw new IllegalArgumentException("slot " + slot);
 		if (vertexCount <= 0 || vertexCount % 4 != 0) return false;
 		int base = buf.position();
 		if ((long) vertexCount * SRC_STRIDE > buf.remaining()) return false;
@@ -47,7 +56,7 @@ public final class QuillSectionTranscoder {
 			int qv = QuillCompactVertex.quantizeUv(buf.getFloat(src + SRC_UV0 + 4));
 			short lu = buf.getShort(src + SRC_UV2);
 			short lv = buf.getShort(src + SRC_UV2 + 2);
-			QuillCompactVertex.put(buf, base + i * QuillCompactVertex.BYTES, qx, qy, qz, faces[i / 4], color, qu, qv, lu, lv);
+			QuillCompactVertex.put(buf, base + i * QuillCompactVertex.BYTES, qx, qy, qz, QuillCompactVertex.packW(faces[i / 4], slot), color, qu, qv, lu, lv);
 		}
 		return true;
 	}

@@ -9,7 +9,7 @@ import java.nio.ByteOrder;
  *
  * <pre>
  * 0-7   position  4×s16: x,y,z = round((p + 8) * 2048) - 32768, section-local p in [-8, +24);
- *                 4th short = face 0..5 (+X,-X,+Y,-Y,+Z,-Z)
+ *                 4th short = face 0..5 (+X,-X,+Y,-Y,+Z,-Z) | region slot 0..255 << 3
  * 8-11  color     4×u8 RGBA, copied verbatim (biome tint × ambient-occlusion shade)
  * 12-15 uv0       2×u16 (stored as s16 bit pattern), round(uv * 65536) capped at 65535
  * 16-19 uv2       2×s16 lightmap coords, copied verbatim
@@ -18,6 +18,20 @@ import java.nio.ByteOrder;
  */
 public record QuillCompactVertex(float x, float y, float z, int face, int colorRgba, float u, float v, short lightU, short lightV) {
 	public static final int BYTES = 20;
+	/** Position.w holds the face in its low 3 bits and the section's region slot above them. */
+	public static final int MAX_SLOT = 255;
+
+	public static int packW(int face, int slot) {
+		return face | slot << 3;
+	}
+
+	public static int faceOf(int w) {
+		return w & 7;
+	}
+
+	public static int slotOf(int w) {
+		return w >>> 3 & 0xFF;
+	}
 	public static final float POS_MIN = -8f;
 	public static final float POS_SCALE = 2048f;
 	public static final float UV_SCALE = 65536f;
@@ -44,11 +58,11 @@ public record QuillCompactVertex(float x, float y, float z, int face, int colorR
 	}
 
 	/** Writes one vertex at {@code buf}'s absolute index {@code off} in the buffer's byte order. Caller validates ranges. */
-	public static void put(ByteBuffer buf, int off, int qx, int qy, int qz, int face, int colorRaw, int qu, int qv, short lightU, short lightV) {
+	public static void put(ByteBuffer buf, int off, int qx, int qy, int qz, int w, int colorRaw, int qu, int qv, short lightU, short lightV) {
 		buf.putShort(off, (short) qx);
 		buf.putShort(off + 2, (short) qy);
 		buf.putShort(off + 4, (short) qz);
-		buf.putShort(off + 6, (short) face);
+		buf.putShort(off + 6, (short) w);
 		buf.putInt(off + 8, colorRaw);
 		buf.putShort(off + 12, (short) qu);
 		buf.putShort(off + 14, (short) qv);
@@ -81,7 +95,7 @@ public record QuillCompactVertex(float x, float y, float z, int face, int colorR
 		int rgba = b.order() == ByteOrder.LITTLE_ENDIAN ? Integer.reverseBytes(colorRaw) : colorRaw;
 		return new QuillCompactVertex(
 				dequantizePos(b.getShort(off)), dequantizePos(b.getShort(off + 2)), dequantizePos(b.getShort(off + 4)),
-				b.getShort(off + 6), rgba,
+				faceOf(b.getShort(off + 6)), rgba,
 				dequantizeUv(b.getShort(off + 12)), dequantizeUv(b.getShort(off + 14)),
 				b.getShort(off + 16), b.getShort(off + 18));
 	}
