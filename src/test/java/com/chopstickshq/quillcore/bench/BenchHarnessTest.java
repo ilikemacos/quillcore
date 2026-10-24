@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class BenchHarnessTest {
 	@Test
 	void emptyReportDoesNotInventFps() {
+		// start() clears samples left by other tests (static harness state; method order isn't guaranteed)
+		BenchHarness.start("empty");
 		BenchHarness.stop();
 		BenchMetrics m = BenchHarness.snapshot();
 		assertNull(m.avgFps);

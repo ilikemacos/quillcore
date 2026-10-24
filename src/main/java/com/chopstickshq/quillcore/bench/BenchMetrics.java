@@ -13,6 +13,10 @@ public final class BenchMetrics {
 	public Double tickDurationMs;
 	public Long memoryUsedBytes;
 	public Double allocRateBytesPerSec;
+	/** Section vertex footprint (M1 slice 1: synthetic sample, not live mesh sizes). */
+	public Long vanillaVertexBytes;
+	public Long quillVertexBytes;
+	public Double vertexByteReductionPct;
 	public String notes = "unmeasured";
 
 	public boolean hasMeasurements() {
@@ -32,6 +36,9 @@ public final class BenchMetrics {
 				+ " tickMs=" + tickDurationMs
 				+ " mem=" + memoryUsedBytes
 				+ " allocBps=" + allocRateBytesPerSec
+				+ " vanillaVtxBytes=" + vanillaVertexBytes
+				+ " quillVtxBytes=" + quillVertexBytes
+				+ " vtxReductionPct=" + vertexByteReductionPct
 				+ " notes=" + notes;
 	}
 }

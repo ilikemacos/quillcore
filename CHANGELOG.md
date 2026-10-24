@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Render M0, replace mode (ADR-001):** QuillCore now `breaks` Sodium and will not load alongside it. `ConflictingRendererCheck` / `warnConflictOnce()` replaces the old Sodium coexistence warning. The 0.4.0 Sodium notes below are historical.
+
+### Added
+- **Render M1 slice 1, compact vertex format (measurement only):** `render/mesh/QuillCompactVertex` (13-byte section-local vertex: u16×3 position, face byte, u16×2 UV, block/sky light bytes), `VanillaVertexFootprint` (32 B/vertex, read from 1.21.8 `DefaultVertexFormat.BLOCK`), `SectionFootprintSampler`.
+- Bench: `vanillaVertexBytes`, `quillVertexBytes`, `vertexByteReductionPct` in `bench.json`/`bench.csv`; config `vertexFootprintSampleEnabled` (default on, bench-only). Synthetic solid-section sample: 196,608 → 79,872 bytes (−59.375%). **Live mesh path unchanged; no FPS claim.**
+
 ## 0.4.0, 2026-10-22
 
 ### Added
