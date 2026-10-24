@@ -99,3 +99,9 @@ Built against Minecraft 1.21.8 only. To try a newer 1.21.x, bump the versions in
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+## Mesh cache in system RAM
+
+`meshRamCacheGb` in `config/quillcore.json` (0 to 16, off by default) sets how much system RAM QuillCore may use to keep chunk meshes that were pushed out of video memory. When a section scrolls back into view it re-uploads from RAM instead of being rebuilt.
+
+This does **not** give your GPU more VRAM. No mod can do that: the graphics driver owns video memory, and on laptops with shared memory the BIOS/driver decides the split. QuillCore only tracks its own mesh uploads against a budget (evicting at 95%, back down to 85%) and throttles re-uploads per frame (8 MB) to avoid stutter. The budget is half of the dedicated VRAM the driver reports (NVIDIA and AMD), or 1 GB if it reports nothing. Only sections that already have a RAM copy are evicted, so nothing has to be rebuilt. A section coming back can skip one frame if that frame's re-upload quota is spent. Translucent layers are not cached.
