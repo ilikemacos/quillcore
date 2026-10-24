@@ -62,6 +62,7 @@ public final class QuillAutoBench implements ClientModInitializer {
 				|| mc.screen instanceof net.minecraft.client.gui.screens.AccessibilityOnboardingScreen)) {
 			worldRequested = true;
 			mc.options.enableVsync().set(false);
+			// 260 is the top of the slider, which vanilla treats as unlimited
 			mc.options.framerateLimit().set(260);
 			mc.options.renderDistance().set(12);
 			mc.options.simulationDistance().set(8);
@@ -131,7 +132,7 @@ public final class QuillAutoBench implements ClientModInitializer {
 		report.environment((error == null ? "" : "ERROR " + error + "; ") + "gpu=" + gpu + "; os="
 				+ System.getProperty("os.name") + "; java=" + System.getProperty("java.version")
 				+ "; resolution=" + mc.getWindow().getWidth() + "x" + mc.getWindow().getHeight()
-				+ "; fullscreen=" + mc.getWindow().isFullscreen() + "; segmentSeconds=" + segTicks / 20 + "; seed=20261023; renderDistance=12; vsync=off; cap=260; throttling=disabled; unfocusedTicks=" + unfocusedTicks + "; iconifiedTicks=" + iconifiedTicks);
+				+ "; fullscreen=" + mc.getWindow().isFullscreen() + "; segmentSeconds=" + segTicks / 20 + "; seed=20261023; renderDistance=12; vsync=off; cap=unlimited; throttling=disabled; unfocusedTicks=" + unfocusedTicks + "; iconifiedTicks=" + iconifiedTicks);
 		try {
 			Path out = Path.of(System.getProperty("quillcore.autobench.out", "quill-test-report"));
 			report.write(out);

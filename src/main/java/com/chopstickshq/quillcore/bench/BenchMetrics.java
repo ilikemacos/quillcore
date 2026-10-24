@@ -5,6 +5,7 @@ public final class BenchMetrics {
 	public String scenarioId;
 	public Double avgFps;
 	public Double pct1LowFps;
+	public Double pct01LowFps;
 	public Double frameTimeP50Ms;
 	public Double frameTimeP99Ms;
 	public Double tickDurationMs;
@@ -28,6 +29,7 @@ public final class BenchMetrics {
 		return "scenario=" + scenarioId
 				+ " avgFps=" + avgFps
 				+ " pct1Low=" + pct1LowFps
+				+ " pct01Low=" + pct01LowFps
 				+ " ftP50Ms=" + frameTimeP50Ms
 				+ " ftP99Ms=" + frameTimeP99Ms
 				+ " tickMs=" + tickDurationMs
