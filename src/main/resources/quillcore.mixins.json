@@ -24,6 +24,7 @@
 		"BlockBehaviourAccessor",
 		"BlockStateCollisionKindMixin",
 		"BrainFlatBehaviorsMixin",
+		"NearestLivingSensorSortMixin",
 		"BlockCollisionsFastMixin",
 		"LevelEntitiesAccessor",
 		"EntityCollideSkipMixin"
