@@ -3,6 +3,7 @@ package com.chopstickshq.quillcore.client.gui;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 /** One row in the settings list. Values live in {@code StagedSettings} under {@link #id}. */
 abstract sealed class QuillOption {
@@ -110,9 +111,9 @@ abstract sealed class QuillOption {
 	/** Static text: a section rule ({@code heading}) or an info line. */
 	static final class Note extends QuillOption {
 		final boolean heading;
-		final java.util.function.Supplier<String> text;
+		final Supplier<String> text;
 
-		Note(String label, boolean heading, java.util.function.Supplier<String> text, String description) {
+		Note(String label, boolean heading, Supplier<String> text, String description) {
 			super(null, label, description, Impact.NONE);
 			this.heading = heading;
 			this.text = text;
