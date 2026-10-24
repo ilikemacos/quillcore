@@ -29,6 +29,7 @@
 	},
 	"mixins": [
 		"quillcore.mixins.json",
+		"quillcore.memory.mixins.json",
 		"quillcore.client.mixins.json"
 	],
 	"depends": {
