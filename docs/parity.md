@@ -15,8 +15,8 @@ impact / effort: 1 (low) to 3 (high).
 | meshing | compact terrain vertex format | part (solid layer, m1) | 3 | 2 |
 | meshing | faster block/fluid model emit, no per-quad allocs | no | 2 | 2 |
 | meshing | biome blend colour cache per section | no | 2 | 1 |
-| batching | per-region buffer arenas | part (allocator, not wired) | 3 | 3 |
-| batching | multidraw per region/pass | part (batch lists, not wired; needs region-relative positions, see below) | 3 | 2 |
+| batching | per-region buffer arenas | pr #25 (compact solid in one slab per region) | 3 | 3 |
+| batching | multidraw per region/pass | pr #24, #25 (merged ranges, one gl call each; raw multidraw next) | 3 | 2 |
 | batching | per-face index split (draw only facing sides) | no | 2 | 2 |
 | culling | section graph occlusion culling (bfs) | n/a, vanilla has SectionOcclusionGraph; a faster one is the work | 2 | 3 |
 | culling | tighter frustum test per region | no | 2 | 1 |
@@ -96,13 +96,13 @@ impact / effort: 1 (low) to 3 (high).
 
 | mod | rows | yes | pr | part | no |
 |---|---|---|---|---|---|
-| sodium | 21 | 1 | 0 | 7 | 13 |
+| sodium | 21 | 1 | 2 | 5 | 13 |
 | lithium | 35 | 0 | 5 | 2 | 28 |
 | ferritecore | 4 | 0 | 3 | 0 | 1 |
 
 (extras that are ours only, and n/a rows, aren't counted. five ferritecore items target things 1.21.8 already fixed.)
 
-## render notes: why multidraw isn't wired yet
+## render notes: region drawing
 
 Checked against 1.21.8 Blaze3D:
 
@@ -117,14 +117,23 @@ Plan:
 4. Each region draws through the sequential quad index buffer, using firstIndex = vertexOffset / 4 * 6 and merging touching ranges.
 5. A raw-GL glMultiDrawElements path comes after.
 
-The client has to render correctly at each step, and each step needs a G14 frame-time run.
+Status: 1 and 2 in #24, 3 and 4 in #25. Each step passed the xvfb mesh compare against vanilla and was checked by eye. The compare freezes daytime and weather; without that, sky light drift between the shots reads about 3/255.
+
+| step | meanAbsRgbDiff /255 | channels >16 off | notes |
+|---|---|---|---|
+| base (region-arena) | 1.213 | 0.058% | sky not frozen |
+| 1+2 slot in w | 0.035 | 0.058% | sky not frozen |
+| 3 slabs | 0.059 | 0.116% | 11 slabs live |
+| 4 merged draws | 0.068 | 0.050% | solid draws 354 -> 10 |
+
+Still one GL call per merged range. Step 5 is next. None of the steps have a G14 frame-time run yet.
 
 ## roadmap (impact / effort)
 
 1. chunk no_locking — pr
 2. ferrite neighbour tables — pr
 3. ferrite quad dedup — pr
-4. region multidraw on m1 compact meshes — allocator pr; next: region-relative vertices, then gl wiring; needs g14 run
+4. region multidraw on m1 compact meshes — slabs + merged draws pr (#24, #25); next: raw gl multidraw; needs g14 run
 5. sleeping block entities — furnace/campfire pr; brewing, crafter, hopper next
 6. biome blend cache — needs g14 run
 7. skip off-screen sprite animation — needs g14 run
