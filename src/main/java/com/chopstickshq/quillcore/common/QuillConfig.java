@@ -94,6 +94,12 @@ public final class QuillConfig {
 	 */
 	public boolean compactMeshEnabled = false;
 
+	/**
+	 * System RAM (GB) used to park chunk meshes evicted from VRAM. 0 = off. This is not extra VRAM;
+	 * it only lets evicted sections come back without a rebuild. See {@code MeshRamCache}.
+	 */
+	public double meshRamCacheGb = 0.0;
+
 	public static final String DEFAULT_SUPPORT_URL = "https://buymeacoffee.com/chopstickshq";
 	/** Target of the "Buy me a coffee" button (always behind a vanilla link confirmation). */
 	public String supportUrl = DEFAULT_SUPPORT_URL;
@@ -195,6 +201,8 @@ public final class QuillConfig {
 		if (Double.isNaN(particleRenderCutoffBlocks) || particleRenderCutoffBlocks < 0) {
 			particleRenderCutoffBlocks = 64.0;
 		}
+		if (Double.isNaN(meshRamCacheGb) || meshRamCacheGb < 0) meshRamCacheGb = 0;
+		if (meshRamCacheGb > 16) meshRamCacheGb = 16;
 		itemMergeThrottleMaxSkipTicks = IdleAiThrottle.clamp(itemMergeThrottleMaxSkipTicks, 0, 10);
 		if (Double.isNaN(itemMergeThrottlePlayerRadiusBlocks) || itemMergeThrottlePlayerRadiusBlocks < 0) {
 			itemMergeThrottlePlayerRadiusBlocks = 32.0;
