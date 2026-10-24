@@ -1,6 +1,7 @@
 package com.chopstickshq.quillcore.render.prep;
 
 import com.chopstickshq.quillcore.render.compact.QuillBufferTag;
+import com.chopstickshq.quillcore.render.mesh.FaceRuns;
 import com.chopstickshq.quillcore.render.region.RegionPos;
 import com.chopstickshq.quillcore.render.region.RegionSlabs;
 import com.chopstickshq.quillcore.render.region.SlabBacked;
@@ -48,7 +49,11 @@ public final class ChunkPrep {
 	@SuppressWarnings("unchecked")
 	private static BiConsumer<GpuBufferSlice[], RenderPass.UniformUploader>[] uploaders = new BiConsumer[0];
 	private static int used;
-	private static int lastDraws, lastBuilt;
+	private static int lastDraws, lastBuilt, lastCulled;
+	private static final int ALL_FACES = 0x3F;
+	/** Slack for faces that sit exactly on the section boundary. */
+	private static final double EDGE = 1.0 / 16.0;
+	static final boolean FACE_CULL = !Boolean.getBoolean("quillcore.noFaceCull");
 
 	static {
 		for (ChunkSectionLayer l : LAYERS) LISTS.put(l, new ArrayList<>());
@@ -64,7 +69,7 @@ public final class ChunkPrep {
 		for (List<RenderPass.Draw<GpuBufferSlice[]>> l : LISTS.values()) l.clear();
 		REGION_SLOT.clear();
 		used = 0;
-		int draws = 0, built = 0;
+		int draws = 0, built = 0, culled = 0;
 		int maxIndices = 0;
 		Object[] sections = visible.elements();
 		for (int s = 0, n = visible.size(); s < n; s++) {
@@ -101,14 +106,57 @@ public final class ChunkPrep {
 					cache.quillcore$setDraw(d);
 					built++;
 				}
-				LISTS.get(layer).add(d);
-				draws++;
+				int[] groups = FACE_CULL && range != null ? cache.quillcore$faceGroups() : null;
+				int mask = groups == null ? ALL_FACES : faceMask(groups, o, cx, cy, cz);
+				if (mask == ALL_FACES) {
+					LISTS.get(layer).add(d);
+					draws++;
+					continue;
+				}
+				RenderPass.Draw<GpuBufferSlice[]>[] fd = cache.quillcore$faceDraws();
+				if (fd == null || cache.quillcore$faceMask() != mask || cache.quillcore$faceSource() != d) {
+					fd = faceDraws(d, groups, mask);
+					cache.quillcore$setFaceDraws(fd, mask, d);
+					built++;
+				}
+				List<RenderPass.Draw<GpuBufferSlice[]>> list = LISTS.get(layer);
+				for (RenderPass.Draw<GpuBufferSlice[]> f : fd) list.add(f);
+				draws += fd.length;
+				culled += Integer.bitCount(~mask & ALL_FACES);
 			}
 		}
 		GpuBufferSlice[] slices = RenderSystem.getDynamicUniforms().writeTransforms(Arrays.copyOf(transforms, used));
 		lastDraws = draws;
 		lastBuilt = built;
+		lastCulled = culled;
 		return new ChunkSectionsToRender(LISTS, maxIndices, slices);
+	}
+
+	/**
+	 * Face groups that can face the camera: a +X face anywhere in the section is only front facing when the camera is
+	 * past its plane, and those planes span [origin, origin + 16]. Empty groups count as visible so they never split a run.
+	 */
+	static int faceMask(int[] groups, BlockPos o, double cx, double cy, double cz) {
+		double x = cx - o.getX(), y = cy - o.getY(), z = cz - o.getZ();
+		int m = 0;
+		if (groups[0] == 0 || x > -EDGE) m |= 1;
+		if (groups[1] == 0 || x < 16 + EDGE) m |= 2;
+		if (groups[2] == 0 || y > -EDGE) m |= 4;
+		if (groups[3] == 0 || y < 16 + EDGE) m |= 8;
+		if (groups[4] == 0 || z > -EDGE) m |= 16;
+		if (groups[5] == 0 || z < 16 + EDGE) m |= 32;
+		return m;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static RenderPass.Draw<GpuBufferSlice[]>[] faceDraws(RenderPass.Draw<GpuBufferSlice[]> d, int[] groups, int mask) {
+		int[] runs = FaceRuns.runs(groups, mask);
+		RenderPass.Draw<GpuBufferSlice[]>[] out = new RenderPass.Draw[runs.length / 2];
+		for (int i = 0; i < out.length; i++) {
+			out[i] = new RenderPass.Draw<>(0, d.vertexBuffer(), null, null, d.firstIndex() + runs[2 * i] * 6, runs[2 * i + 1] * 6,
+					d.uniformUploaderConsumer());
+		}
+		return out;
 	}
 
 	/** Compact vertices add their slot offset in the shader, so the whole region shares the region origin's transform. */
@@ -148,6 +196,11 @@ public final class ChunkPrep {
 
 	public static int lastDraws() {
 		return lastDraws;
+	}
+
+	/** Face groups skipped last frame because they faced away from the camera. */
+	public static int lastCulled() {
+		return lastCulled;
 	}
 
 	/** Draws that had to be rebuilt last frame; the rest came from the per-buffer cache. */

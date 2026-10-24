@@ -15,11 +15,18 @@ import java.nio.ByteBuffer;
 public final class QuillMeshData extends MeshData {
 	private final MeshData original;
 	private final DrawState drawState;
+	private final int[] faceGroups;
 
-	public QuillMeshData(MeshData original) {
+	/** @param faceGroups quads per face group (+X,-X,+Y,-Y,+Z,-Z) in buffer order, or null if not grouped */
+	public QuillMeshData(MeshData original, int[] faceGroups) {
 		super(null, quillState(original.drawState()));
 		this.original = original;
 		this.drawState = quillState(original.drawState());
+		this.faceGroups = faceGroups;
+	}
+
+	public int[] faceGroups() {
+		return faceGroups;
 	}
 
 	private static DrawState quillState(DrawState s) {

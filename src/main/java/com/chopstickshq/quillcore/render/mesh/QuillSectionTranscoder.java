@@ -47,18 +47,77 @@ public final class QuillSectionTranscoder {
 			faces[q] = (byte) face;
 		}
 		for (int i = 0; i < vertexCount; i++) {
-			int src = base + i * SRC_STRIDE;
-			int qx = QuillCompactVertex.quantizePos(buf.getFloat(src + SRC_POS));
-			int qy = QuillCompactVertex.quantizePos(buf.getFloat(src + SRC_POS + 4));
-			int qz = QuillCompactVertex.quantizePos(buf.getFloat(src + SRC_POS + 8));
-			int color = buf.getInt(src + SRC_COLOR);
-			int qu = QuillCompactVertex.quantizeUv(buf.getFloat(src + SRC_UV0));
-			int qv = QuillCompactVertex.quantizeUv(buf.getFloat(src + SRC_UV0 + 4));
-			short lu = buf.getShort(src + SRC_UV2);
-			short lv = buf.getShort(src + SRC_UV2 + 2);
-			QuillCompactVertex.put(buf, base + i * QuillCompactVertex.BYTES, qx, qy, qz, QuillCompactVertex.packW(faces[i / 4], slot), color, qu, qv, lu, lv);
+			writeVertex(buf, base + i * SRC_STRIDE, buf, base + i * QuillCompactVertex.BYTES, faces[i / 4], slot);
 		}
 		return true;
+	}
+
+	/**
+	 * As {@link #transcodeInPlace(ByteBuffer, int, int)}, but the quads come out grouped by face in the order
+	 * +X,-X,+Y,-Y,+Z,-Z so a draw can skip the groups that face away from the camera. {@code groupQuads[f]} receives
+	 * the quad count of group {@code f}. A quad is grouped by the side its winding faces, which is its normal's side
+	 * except for back faces.
+	 */
+	public static boolean transcodeGrouped(ByteBuffer buf, int vertexCount, int slot, int[] groupQuads) {
+		if (slot < 0 || slot > QuillCompactVertex.MAX_SLOT) throw new IllegalArgumentException("slot " + slot);
+		if (vertexCount <= 0 || vertexCount % 4 != 0) return false;
+		int base = buf.position();
+		if ((long) vertexCount * SRC_STRIDE > buf.remaining()) return false;
+		int quads = vertexCount / 4;
+		byte[] faces = new byte[quads];
+		int[] counts = new int[6];
+		for (int q = 0; q < quads; q++) {
+			int q0 = base + q * 4 * SRC_STRIDE;
+			int face = validateQuad(buf, q0);
+			if (face < 0) return false;
+			// Normals stay as built (lighting reads them); the group follows the side the quad is actually visible from,
+			// which differs for back faces such as the underside of a lava surface.
+			int group = windingMatches(buf, q0, face) ? face : face ^ 1;
+			faces[q] = (byte) (group << 3 | face);
+			counts[group]++;
+		}
+		// Reordering breaks the read-before-write order the in-place path relies on, so read from a copy.
+		byte[] copy = new byte[vertexCount * SRC_STRIDE];
+		buf.get(base, copy);
+		ByteBuffer src = ByteBuffer.wrap(copy).order(buf.order());
+		int[] next = new int[6];
+		for (int f = 1; f < 6; f++) next[f] = next[f - 1] + counts[f - 1];
+		for (int q = 0; q < quads; q++) {
+			int out = next[faces[q] >> 3]++;
+			int f = faces[q] & 7;
+			for (int k = 0; k < 4; k++) {
+				writeVertex(src, (q * 4 + k) * SRC_STRIDE, buf, base + (out * 4 + k) * QuillCompactVertex.BYTES, f, slot);
+			}
+		}
+		System.arraycopy(counts, 0, groupQuads, 0, 6);
+		return true;
+	}
+
+	/**
+	 * The quad's front side (counter-clockwise winding) points the same way as its face normal, using the signed area
+	 * of all four corners so a degenerate first triangle doesn't decide it. Zero-area quads draw nothing and pass.
+	 */
+	static boolean windingMatches(ByteBuffer buf, int q0, int face) {
+		int axis = face / 2;
+		int a = SRC_POS + (axis + 1) % 3 * 4, b = SRC_POS + (axis + 2) % 3 * 4;
+		float area = 0;
+		for (int k = 0; k < 4; k++) {
+			int p = q0 + k * SRC_STRIDE, n = q0 + (k + 1 & 3) * SRC_STRIDE;
+			area += buf.getFloat(p + a) * buf.getFloat(n + b) - buf.getFloat(n + a) * buf.getFloat(p + b);
+		}
+		return face % 2 == 0 ? area >= 0 : area <= 0;
+	}
+
+	private static void writeVertex(ByteBuffer from, int src, ByteBuffer to, int dst, int face, int slot) {
+		int qx = QuillCompactVertex.quantizePos(from.getFloat(src + SRC_POS));
+		int qy = QuillCompactVertex.quantizePos(from.getFloat(src + SRC_POS + 4));
+		int qz = QuillCompactVertex.quantizePos(from.getFloat(src + SRC_POS + 8));
+		int color = from.getInt(src + SRC_COLOR);
+		int qu = QuillCompactVertex.quantizeUv(from.getFloat(src + SRC_UV0));
+		int qv = QuillCompactVertex.quantizeUv(from.getFloat(src + SRC_UV0 + 4));
+		short lu = from.getShort(src + SRC_UV2);
+		short lv = from.getShort(src + SRC_UV2 + 2);
+		QuillCompactVertex.put(to, dst, qx, qy, qz, QuillCompactVertex.packW(face, slot), color, qu, qv, lu, lv);
 	}
 
 	/** Face index 0..5 for an axis-aligned, in-range quad starting at absolute index {@code q0}; -1 otherwise. */
