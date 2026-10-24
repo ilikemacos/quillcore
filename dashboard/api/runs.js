@@ -36,7 +36,7 @@ function summarize(id, d) {
     id, generated: d.meta?.generated, commit: d.meta?.commit, branch: d.meta?.branch, gpu: d.meta?.['GPU renderer (GL_RENDERER)'] || d.meta?.GPU, benchValid: d.bench ? d.bench.valid !== false : null,
     resolution: d.meta?.['Bench resolution'], overall: d.overall,
     layers: (d.layers || []).map(l => ({ name: l.name, status: l.status, tests: l.tests ?? null, passed: l.passed ?? null, failed: l.failed ?? null })),
-    avgFps: s.avgFps || null, pct1LowFps: s.pct1LowFps || null, msptAvg: s.msptAvg || null,
+    avgFps: s.avgFps || null, pct1LowFps: s.pct1LowFps || null, pct01LowFps: s.pct01LowFps || null, msptAvg: s.msptAvg || null,
   };
 }
 
