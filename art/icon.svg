@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect x="16" y="16" width="480" height="480" rx="104" fill="#0f1d26"/><polygon points="411.9,346.0 256.0,436.0 100.1,346.0 100.1,166.0 256.0,76.0 411.9,166.0" fill="#1f8f82"/><g transform="rotate(40 256 256)">
+ <path d="M256 70 C330 130 338 240 300 330 C290 352 274 372 262 384 L250 384 C238 372 222 352 212 330 C174 240 182 130 256 70 Z" fill="#f7f3e8"/>
+ <path d="M256 70 C292 120 302 200 290 270 L262 300 Z" fill="#bfe8df" opacity=".9"/>
+ <path d="M300 200 L262 232 M306 250 L262 286 M212 212 L250 244" stroke="#1f8f82" stroke-width="10" stroke-linecap="round"/>
+ <path d="M256 110 L256 450" stroke="#1f8f82" stroke-width="12" stroke-linecap="round"/>
+ <path d="M256 384 L256 452" stroke="#f7f3e8" stroke-width="12" stroke-linecap="round"/>
+</g></svg>
