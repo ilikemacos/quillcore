@@ -26,7 +26,8 @@ public final class QuillMixinPlugin implements IMixinConfigPlugin {
 			"PistonStructureResolverDirectionsMixin",
 			"RedStoneWireBlockDirectionsMixin",
 			"PalettedContainerNoLockMixin",
-			"BrainFlatBehaviorsMixin");
+			"BrainFlatBehaviorsMixin",
+			"GateBehaviorLoopsMixin");
 
 	private boolean lithium;
 	private boolean ferritecore;

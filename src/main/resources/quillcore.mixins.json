@@ -25,12 +25,14 @@
 		"BlockStateCollisionKindMixin",
 		"BrainFlatBehaviorsMixin",
 		"NearestLivingSensorSortMixin",
-    "LivingEntityPushWalkMixin",
-    "EntitySectionItemCountMixin",
-    "MobPickupScanSkipMixin",
+		"LivingEntityPushWalkMixin",
+		"EntitySectionItemCountMixin",
+		"MobPickupScanSkipMixin",
 		"BlockCollisionsFastMixin",
 		"LevelEntitiesAccessor",
-		"EntityCollideSkipMixin"
+		"EntityCollideSkipMixin",
+		"ShufflingListAccessor",
+		"GateBehaviorLoopsMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
